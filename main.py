@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 
 load_dotenv()
 
+from storage import save_document  # noqa: E402
 from summarize_images import ACCEPTED_IMAGE_TYPES, analyze_email, combine_attachments_to_pdf, summarize_german_document  # noqa: E402
 
 logging.basicConfig(level=logging.INFO)
@@ -189,6 +190,7 @@ async def agentmail_webhook(request: Request):
     if event_type != "message.received":
         return {"status": "ignored", "event_type": event_type}
 
+    event_id = payload.get("event_id", "")
     message = payload.get("message", {})
     thread_meta = payload.get("thread", {})
 
@@ -277,5 +279,20 @@ async def agentmail_webhook(request: Request):
         await _send_reply(inbox_id, message_id, generated_subject, summary, combined_pdf)
     except Exception:
         logger.exception("Failed to send reply for message %s", message_id)
+
+    try:
+        await save_document(
+            sender_email=sender,
+            event_id=event_id,
+            thread_id=thread_id,
+            inbox_id=inbox_id,
+            subject=generated_subject,
+            summary=summary,
+            pdf_bytes=combined_pdf,
+            pdf_filename=f"{re.sub(r'[^\w\s-]', '', generated_subject).strip().replace(' ', '_') or 'document'}.pdf",
+            attachment_count=len(attachments),
+        )
+    except Exception:
+        logger.exception("Failed to save document to Firestore/GCS")
 
     return {"status": "ok", "subject": generated_subject, "summary": summary}

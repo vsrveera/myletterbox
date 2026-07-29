@@ -8,3 +8,5 @@ markdown
 Pillow
 pillow-heif
 pypdf
+google-cloud-firestore
+google-cloud-storage
