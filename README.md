@@ -41,6 +41,7 @@ Sender → AgentMail inbox → Webhook → Cloud Run
 - **HTML reply** — formatted email with headings, bullet points, and blockquotes
 - **Combined PDF** — all attachments merged into one PDF, named after the generated subject, and attached to the reply
 - **Per-user storage** — summaries in Firestore, PDFs in Cloud Storage, keyed by sender email
+- **Web UI** — Firebase-hosted SPA to browse stored summaries and download PDFs, secured with Google Sign-In
 
 ---
 
@@ -55,6 +56,8 @@ Sender → AgentMail inbox → Webhook → Cloud Run
 | PDF merging | pypdf |
 | Metadata store | Google Cloud Firestore |
 | File store | Google Cloud Storage |
+| Web UI | Firebase Hosting (vanilla JS + Firebase SDK) |
+| Auth | Firebase Authentication (Google Sign-In) |
 
 ---
 
@@ -91,7 +94,7 @@ AgentMail webhook receiver. Called automatically when the inbox receives an emai
     "inbox_id": "you@agentmail.to",
     "message_id": "<...>",
     "thread_id": "...",
-    "from": "sender@example.com",
+    "from": "Name <sender@example.com>",
     "subject": "hello",
     "body_url": "https://...",
     "attachments": [
@@ -134,6 +137,7 @@ users/
         thread_id       string
         inbox_id        string
         pdf_gcs_uri     string   — gs://... path to merged PDF (null if no attachments)
+        pdf_public_url  string   — https://storage.googleapis.com/... public download URL
         pdf_filename    string
         attachment_count number
 ```
@@ -146,6 +150,30 @@ gs://myletterbox-757041740498/
     {event_id}/
       {Subject_Line}.pdf    ← all attachments merged into one PDF
 ```
+
+---
+
+## Web UI
+
+A static single-page app hosted on Firebase shows all processed documents for the signed-in user.
+
+**URL:** `https://project-f33cb18b-d366-43b3-9ee.web.app`
+
+**Features:**
+- Google Sign-In — only the sender's own documents are visible (enforced by Firestore security rules)
+- Stats cards: total documents, total attachments, date of latest document
+- Table: Date / Subject / Attachments / Summary preview / PDF download
+- Click any row to expand the full summary
+- Search bar filters by subject or summary text
+
+**Firestore security rules** (`firestore.rules`) restrict each user to their own subtree:
+```
+match /users/{email}/documents/{docId} {
+  allow read: if request.auth != null && request.auth.token.email == email;
+}
+```
+
+**To redeploy the web UI** after making changes to `public/index.html` or `firestore.rules`, use the Firebase Hosting REST API or run `firebase deploy` after `firebase login`.
 
 ---
 
@@ -244,5 +272,10 @@ myletterbox/
 ├── storage.py           # Firestore + GCS persistence
 ├── Dockerfile
 ├── requirements.txt
+├── firebase.json        # Firebase Hosting + Firestore rules config
+├── firestore.rules      # Firestore security rules
+├── .firebaserc          # Firebase project binding
+├── public/
+│   └── index.html       # Web UI SPA (Google Sign-In + document browser)
 └── sample_german_letter.jpg
 ```
