@@ -5,6 +5,7 @@ import tempfile
 from pathlib import Path
 
 import httpx
+import markdown as md
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
@@ -56,8 +57,18 @@ async def _fetch_thread_history(inbox_id: str, thread_id: str, current_message_i
 
 async def _send_reply(inbox_id: str, message_id: str, text: str) -> None:
     url = f"{AGENTMAIL_BASE}/inboxes/{inbox_id}/messages/{message_id}/reply"
+    html_body = f"""<!DOCTYPE html>
+<html>
+<body style="font-family: Arial, sans-serif; font-size: 14px; color: #222; max-width: 700px; line-height: 1.6;">
+{md.markdown(text, extensions=["extra", "nl2br"])}
+</body>
+</html>"""
     async with httpx.AsyncClient(timeout=30) as http:
-        resp = await http.post(url, headers=_agentmail_headers(), json={"text": text})
+        resp = await http.post(
+            url,
+            headers=_agentmail_headers(),
+            json={"text": text, "html": html_body},
+        )
         resp.raise_for_status()
     logger.info("Reply sent to message %s", message_id)
 
