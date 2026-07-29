@@ -81,10 +81,21 @@ async def _download_attachment(inbox_id: str, message_id: str, attachment_id: st
     if "application/json" in content_type:
         envelope = resp.json()
         logger.info("Attachment JSON envelope keys: %s", list(envelope.keys()))
+
+        # AgentMail returns a pre-signed download_url for the actual binary
+        download_url = envelope.get("download_url")
+        if download_url:
+            async with httpx.AsyncClient(timeout=60) as http2:
+                dl = await http2.get(download_url)
+                dl.raise_for_status()
+            return dl.content
+
+        # Fallback: base64-encoded content field
         raw_b64 = envelope.get("content") or envelope.get("data") or envelope.get("body")
         if raw_b64:
             return base64.b64decode(raw_b64)
-        raise ValueError(f"JSON attachment envelope has no recognisable content field: {list(envelope.keys())}")
+
+        raise ValueError(f"JSON attachment envelope has no download_url or content field: {list(envelope.keys())}")
 
     return resp.content
 
