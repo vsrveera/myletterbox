@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 
 load_dotenv()
 
-from summarize_images import ACCEPTED_IMAGE_TYPES, analyze_email, summarize_german_document  # noqa: E402
+from summarize_images import ACCEPTED_IMAGE_TYPES, analyze_email, combine_attachments_to_pdf, summarize_german_document  # noqa: E402
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("myletterbox")
@@ -53,7 +53,13 @@ async def _fetch_thread_history(inbox_id: str, thread_id: str, current_message_i
     ]
 
 
-async def _send_reply(inbox_id: str, message_id: str, subject: str, text: str) -> None:
+async def _send_reply(
+    inbox_id: str,
+    message_id: str,
+    subject: str,
+    text: str,
+    combined_pdf: bytes | None = None,
+) -> None:
     url = f"{AGENTMAIL_BASE}/inboxes/{inbox_id}/messages/{message_id}/reply"
     html_body = f"""<!DOCTYPE html>
 <html>
@@ -64,12 +70,19 @@ async def _send_reply(inbox_id: str, message_id: str, subject: str, text: str) -
 {md.markdown(text, extensions=["extra", "nl2br"])}
 </body>
 </html>"""
+
+    payload: dict = {"text": f"Topic: {subject}\n\n{text}", "html": html_body}
+
+    if combined_pdf:
+        payload["attachments"] = [{
+            "filename": "combined_documents.pdf",
+            "content_type": "application/pdf",
+            "content": base64.b64encode(combined_pdf).decode(),
+        }]
+        logger.info("Attaching combined PDF (%d bytes) to reply", len(combined_pdf))
+
     async with httpx.AsyncClient(timeout=30) as http:
-        resp = await http.post(
-            url,
-            headers=_agentmail_headers(),
-            json={"text": f"Topic: {subject}\n\n{text}", "html": html_body},
-        )
+        resp = await http.post(url, headers=_agentmail_headers(), json=payload)
         resp.raise_for_status()
     logger.info("Reply sent — subject: %r  message: %s", subject, message_id)
 
@@ -249,8 +262,17 @@ async def agentmail_webhook(request: Request):
     summary = result["summary"]
     logger.info("Generated subject: %r", generated_subject)
 
+    # Combine attachments into a single PDF when there are multiple
+    combined_pdf: bytes | None = None
+    if len(attachments) > 1:
+        try:
+            combined_pdf = combine_attachments_to_pdf(attachments)
+            logger.info("Combined %d attachments into PDF", len(attachments))
+        except Exception:
+            logger.exception("Failed to combine attachments into PDF")
+
     try:
-        await _send_reply(inbox_id, message_id, generated_subject, summary)
+        await _send_reply(inbox_id, message_id, generated_subject, summary, combined_pdf)
     except Exception:
         logger.exception("Failed to send reply for message %s", message_id)
 

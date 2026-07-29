@@ -6,6 +6,7 @@ from pathlib import Path
 import anthropic
 import pillow_heif
 from PIL import Image
+from pypdf import PdfReader, PdfWriter
 
 pillow_heif.register_heif_opener()  # adds HEIC/HEIF support to Pillow
 
@@ -59,6 +60,40 @@ def _encode_image(image_path: str | Path) -> tuple[str, str]:
         raw = f.read()
     data, mime_type = _to_claude_image(raw, mime_type)
     return base64.standard_b64encode(data).decode("utf-8"), mime_type
+
+
+def combine_attachments_to_pdf(attachments: list[dict]) -> bytes | None:
+    """
+    Merge all image and PDF attachments into a single multi-page PDF.
+
+    Each image becomes one page; each PDF contributes all its pages.
+    Returns None if there are no processable attachments.
+    """
+    writer = PdfWriter()
+
+    for att in attachments:
+        media_type = att.get("media_type", "")
+        data = att["data"]
+
+        if media_type in ACCEPTED_IMAGE_TYPES:
+            img_data, _ = _to_claude_image(data, media_type)
+            img = Image.open(io.BytesIO(img_data)).convert("RGB")
+            img_pdf_buf = io.BytesIO()
+            img.save(img_pdf_buf, format="PDF")
+            img_pdf_buf.seek(0)
+            for page in PdfReader(img_pdf_buf).pages:
+                writer.add_page(page)
+
+        elif media_type == "application/pdf":
+            for page in PdfReader(io.BytesIO(data)).pages:
+                writer.add_page(page)
+
+    if len(writer.pages) == 0:
+        return None
+
+    buf = io.BytesIO()
+    writer.write(buf)
+    return buf.getvalue()
 
 
 def summarize_german_document(
