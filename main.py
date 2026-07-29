@@ -1,6 +1,7 @@
 import base64
 import logging
 import os
+import re
 import tempfile
 from pathlib import Path
 
@@ -74,8 +75,9 @@ async def _send_reply(
     payload: dict = {"text": f"Topic: {subject}\n\n{text}", "html": html_body}
 
     if combined_pdf:
+        safe_name = re.sub(r'[^\w\s-]', '', subject).strip().replace(' ', '_') or "combined_documents"
         payload["attachments"] = [{
-            "filename": "combined_documents.pdf",
+            "filename": f"{safe_name}.pdf",
             "content_type": "application/pdf",
             "content": base64.b64encode(combined_pdf).decode(),
         }]
