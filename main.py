@@ -262,9 +262,9 @@ async def agentmail_webhook(request: Request):
     summary = result["summary"]
     logger.info("Generated subject: %r", generated_subject)
 
-    # Combine attachments into a single PDF when there are multiple
+    # Convert all attachments (images + PDFs) into a single combined PDF
     combined_pdf: bytes | None = None
-    if len(attachments) > 1:
+    if attachments:
         try:
             combined_pdf = combine_attachments_to_pdf(attachments)
             logger.info("Combined %d attachments into PDF", len(attachments))
