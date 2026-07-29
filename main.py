@@ -12,14 +12,12 @@ from fastapi.responses import JSONResponse
 
 load_dotenv()
 
-from summarize_images import analyze_email, summarize_german_document  # noqa: E402
+from summarize_images import ACCEPTED_IMAGE_TYPES, analyze_email, summarize_german_document  # noqa: E402
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("myletterbox")
 
 app = FastAPI(title="myletterbox")
-
-ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
 AGENTMAIL_BASE = "https://api.agentmail.to/v0"
 
 
@@ -135,10 +133,10 @@ async def summarize(files: list[UploadFile] = File(...)):
         raise HTTPException(status_code=400, detail="At least one image file is required.")
 
     for f in files:
-        if f.content_type not in ALLOWED_IMAGE_TYPES:
+        if f.content_type not in ACCEPTED_IMAGE_TYPES:
             raise HTTPException(
                 status_code=415,
-                detail=f"Unsupported file type '{f.content_type}'. Allowed: {sorted(ALLOWED_IMAGE_TYPES)}",
+                detail=f"Unsupported file type '{f.content_type}'. Allowed: {sorted(ACCEPTED_IMAGE_TYPES)}",
             )
 
     saved_paths: list[Path] = []
@@ -208,7 +206,7 @@ async def agentmail_webhook(request: Request):
             logger.exception("Failed to fetch thread history for thread %s", thread_id)
 
     # Download attachments (images + PDFs only; skip everything else)
-    supported_types = ALLOWED_IMAGE_TYPES | {"application/pdf"}
+    supported_types = ACCEPTED_IMAGE_TYPES | {"application/pdf"}
     attachments: list[dict] = []
 
     raw_attachments = message.get("attachments", [])

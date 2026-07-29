@@ -1,8 +1,13 @@
 import base64
+import io
 import mimetypes
 from pathlib import Path
 
 import anthropic
+import pillow_heif
+from PIL import Image
+
+pillow_heif.register_heif_opener()  # adds HEIC/HEIF support to Pillow
 
 client = anthropic.Anthropic()
 
@@ -15,18 +20,45 @@ SYSTEM_PROMPT = (
     "document content including sender, recipient, key topics, and overall purpose."
 )
 
-_SUPPORTED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+# Formats Claude accepts natively
+_CLAUDE_IMAGE_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+
+# All image formats we accept from users/emails (converted to JPEG before sending to Claude)
+ACCEPTED_IMAGE_TYPES = {
+    "image/jpeg", "image/jpg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "image/heic", "image/heif",       # iPhone default (iOS 11+)
+    "image/x-heic", "image/x-heif",   # non-standard HEIC variants
+    "image/avif",                       # AV1 Image (modern Android/Chrome)
+    "image/tiff", "image/x-tiff",      # TIFF from some cameras
+    "image/bmp", "image/x-ms-bmp",    # BMP
+}
+
+
+def _to_claude_image(data: bytes, media_type: str) -> tuple[bytes, str]:
+    """Convert any supported image format to one Claude accepts (JPEG fallback)."""
+    if media_type in _CLAUDE_IMAGE_TYPES:
+        return data, media_type
+    img = Image.open(io.BytesIO(data))
+    if img.mode not in ("RGB", "L"):
+        img = img.convert("RGB")
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=92)
+    return buf.getvalue(), "image/jpeg"
 
 
 def _encode_image(image_path: str | Path) -> tuple[str, str]:
-    """Return (base64_data, mime_type) for an image file."""
+    """Return (base64_data, mime_type) for an image file, converting to JPEG if needed."""
     path = Path(image_path)
     mime_type, _ = mimetypes.guess_type(path)
     if mime_type is None:
         mime_type = "image/jpeg"
     with open(path, "rb") as f:
-        data = base64.standard_b64encode(f.read()).decode("utf-8")
-    return data, mime_type
+        raw = f.read()
+    data, mime_type = _to_claude_image(raw, mime_type)
+    return base64.standard_b64encode(data).decode("utf-8"), mime_type
 
 
 def summarize_german_document(
@@ -114,17 +146,18 @@ def analyze_email(
     # Attach images and PDFs
     for att in attachments:
         media_type = att.get("media_type", "")
-        b64 = base64.standard_b64encode(att["data"]).decode()
+        raw = att["data"]
 
-        if media_type in _SUPPORTED_IMAGE_TYPES:
+        if media_type in ACCEPTED_IMAGE_TYPES:
+            img_data, img_type = _to_claude_image(raw, media_type)
             content.append({
                 "type": "image",
-                "source": {"type": "base64", "media_type": media_type, "data": b64},
+                "source": {"type": "base64", "media_type": img_type, "data": base64.standard_b64encode(img_data).decode()},
             })
         elif media_type == "application/pdf":
             content.append({
                 "type": "document",
-                "source": {"type": "base64", "media_type": "application/pdf", "data": b64},
+                "source": {"type": "base64", "media_type": "application/pdf", "data": base64.standard_b64encode(raw).decode()},
             })
 
     content.append({
