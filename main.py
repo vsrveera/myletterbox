@@ -1,3 +1,4 @@
+import base64
 import logging
 import os
 import tempfile
@@ -12,6 +13,7 @@ load_dotenv()
 
 from summarize_images import analyze_email, summarize_german_document  # noqa: E402
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("myletterbox")
 
 app = FastAPI(title="myletterbox")
@@ -34,8 +36,8 @@ def _agentmail_headers() -> dict:
 async def _fetch_thread_history(inbox_id: str, thread_id: str, current_message_id: str) -> list[dict]:
     """Return all messages in the thread except the current one, oldest first."""
     url = f"{AGENTMAIL_BASE}/inboxes/{inbox_id}/threads/{thread_id}"
-    async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.get(url, headers=_agentmail_headers())
+    async with httpx.AsyncClient(timeout=30) as http:
+        resp = await http.get(url, headers=_agentmail_headers())
         resp.raise_for_status()
 
     thread = resp.json()
@@ -53,10 +55,28 @@ async def _fetch_thread_history(inbox_id: str, thread_id: str, current_message_i
 
 
 async def _download_attachment(inbox_id: str, message_id: str, attachment_id: str) -> bytes:
+    """
+    Download attachment bytes from AgentMail.
+
+    AgentMail may return either raw binary or a JSON envelope with a base64
+    `content` field — handle both.
+    """
     url = f"{AGENTMAIL_BASE}/inboxes/{inbox_id}/messages/{message_id}/attachments/{attachment_id}"
-    async with httpx.AsyncClient(timeout=60) as client:
-        resp = await client.get(url, headers=_agentmail_headers())
+    async with httpx.AsyncClient(timeout=60) as http:
+        resp = await http.get(url, headers=_agentmail_headers())
         resp.raise_for_status()
+
+    content_type = resp.headers.get("content-type", "")
+    logger.info("Attachment response content-type: %s  size: %d bytes", content_type, len(resp.content))
+
+    if "application/json" in content_type:
+        envelope = resp.json()
+        logger.info("Attachment JSON envelope keys: %s", list(envelope.keys()))
+        raw_b64 = envelope.get("content") or envelope.get("data") or envelope.get("body")
+        if raw_b64:
+            return base64.b64decode(raw_b64)
+        raise ValueError(f"JSON attachment envelope has no recognisable content field: {list(envelope.keys())}")
+
     return resp.content
 
 
@@ -108,6 +128,7 @@ async def agentmail_webhook(request: Request):
     everything with Claude.
     """
     payload = await request.json()
+    logger.info("Webhook payload: %s", payload)
 
     event_type = payload.get("event_type")
     if event_type != "message.received":
@@ -123,31 +144,50 @@ async def agentmail_webhook(request: Request):
     sender = message.get("from", "")
     body = message.get("text") or ""
 
+    logger.info(
+        "Processing email — inbox: %s  thread: %s  message: %s  subject: %r  attachments: %d",
+        inbox_id, thread_id, message_id, subject,
+        len(message.get("attachments", [])),
+    )
+
     # Fetch previous messages if this is part of an ongoing thread
     thread_history: list[dict] = []
     if thread_meta.get("message_count", 1) > 1 and thread_id:
         try:
             thread_history = await _fetch_thread_history(inbox_id, thread_id, message_id)
+            logger.info("Fetched %d prior messages from thread", len(thread_history))
         except Exception:
             logger.exception("Failed to fetch thread history for thread %s", thread_id)
 
     # Download attachments (images + PDFs only; skip everything else)
     supported_types = ALLOWED_IMAGE_TYPES | {"application/pdf"}
     attachments: list[dict] = []
-    for att in message.get("attachments", []):
+
+    raw_attachments = message.get("attachments", [])
+    logger.info("Raw attachment list: %s", raw_attachments)
+
+    for att in raw_attachments:
         media_type = att.get("content_type", "")
         if media_type not in supported_types:
-            logger.info("Skipping unsupported attachment type: %s", media_type)
+            logger.info("Skipping unsupported attachment type: %s  filename: %s", media_type, att.get("filename"))
             continue
+
+        # AgentMail uses "id" or "attachment_id" depending on context
+        att_id = att.get("id") or att.get("attachment_id")
+        if not att_id:
+            logger.warning("Attachment has no id field: %s", att)
+            continue
+
         try:
-            data = await _download_attachment(inbox_id, message_id, att["attachment_id"])
+            data = await _download_attachment(inbox_id, message_id, att_id)
+            logger.info("Downloaded attachment %s (%s) — %d bytes", att.get("filename"), media_type, len(data))
             attachments.append({
                 "data": data,
                 "media_type": media_type,
                 "filename": att.get("filename", ""),
             })
         except Exception:
-            logger.exception("Failed to download attachment %s", att.get("attachment_id"))
+            logger.exception("Failed to download attachment %s (id=%s)", att.get("filename"), att_id)
 
     summary = analyze_email(
         subject=subject,
