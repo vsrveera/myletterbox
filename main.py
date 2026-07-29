@@ -54,6 +54,14 @@ async def _fetch_thread_history(inbox_id: str, thread_id: str, current_message_i
     ]
 
 
+async def _send_reply(inbox_id: str, message_id: str, text: str) -> None:
+    url = f"{AGENTMAIL_BASE}/inboxes/{inbox_id}/messages/{message_id}/reply"
+    async with httpx.AsyncClient(timeout=30) as http:
+        resp = await http.post(url, headers=_agentmail_headers(), json={"text": text})
+        resp.raise_for_status()
+    logger.info("Reply sent to message %s", message_id)
+
+
 async def _fetch_body(body_url: str) -> str:
     """Fetch the email body from AgentMail's pre-signed S3 URL."""
     async with httpx.AsyncClient(timeout=30) as http:
@@ -225,5 +233,10 @@ async def agentmail_webhook(request: Request):
         attachments=attachments,
         thread_history=thread_history,
     )
+
+    try:
+        await _send_reply(inbox_id, message_id, summary)
+    except Exception:
+        logger.exception("Failed to send reply for message %s", message_id)
 
     return {"status": "ok", "summary": summary}
