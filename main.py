@@ -198,7 +198,10 @@ async def agentmail_webhook(request: Request):
     message_id = message.get("message_id", "")
     thread_id = message.get("thread_id", "")
     subject = message.get("subject", "")
-    sender = message.get("from", "")
+    sender_raw = message.get("from", "")
+    # Extract bare email from "Name <email>" or "email" formats
+    m = re.search(r"<([^>]+)>", sender_raw)
+    sender = m.group(1).strip().lower() if m else sender_raw.strip().lower()
 
     # Body is delivered via a pre-signed URL, not inline in the webhook payload
     body = message.get("text") or ""
