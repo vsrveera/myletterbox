@@ -53,11 +53,14 @@ async def _fetch_thread_history(inbox_id: str, thread_id: str, current_message_i
     ]
 
 
-async def _send_reply(inbox_id: str, message_id: str, text: str) -> None:
+async def _send_reply(inbox_id: str, message_id: str, subject: str, text: str) -> None:
     url = f"{AGENTMAIL_BASE}/inboxes/{inbox_id}/messages/{message_id}/reply"
     html_body = f"""<!DOCTYPE html>
 <html>
 <body style="font-family: Arial, sans-serif; font-size: 14px; color: #222; max-width: 700px; line-height: 1.6;">
+<p style="margin:0 0 16px 0; padding:8px 12px; background:#f5f5f5; border-left:4px solid #666; font-size:13px; color:#444;">
+  <strong>Topic:</strong> {subject}
+</p>
 {md.markdown(text, extensions=["extra", "nl2br"])}
 </body>
 </html>"""
@@ -65,10 +68,10 @@ async def _send_reply(inbox_id: str, message_id: str, text: str) -> None:
         resp = await http.post(
             url,
             headers=_agentmail_headers(),
-            json={"text": text, "html": html_body},
+            json={"text": f"Topic: {subject}\n\n{text}", "html": html_body},
         )
         resp.raise_for_status()
-    logger.info("Reply sent to message %s", message_id)
+    logger.info("Reply sent — subject: %r  message: %s", subject, message_id)
 
 
 async def _fetch_body(body_url: str) -> str:
@@ -235,17 +238,20 @@ async def agentmail_webhook(request: Request):
         except Exception:
             logger.exception("Failed to download attachment %s (id=%s)", att.get("filename"), att_id)
 
-    summary = analyze_email(
+    result = analyze_email(
         subject=subject,
         sender=sender,
         body=body,
         attachments=attachments,
         thread_history=thread_history,
     )
+    generated_subject = result["subject"]
+    summary = result["summary"]
+    logger.info("Generated subject: %r", generated_subject)
 
     try:
-        await _send_reply(inbox_id, message_id, summary)
+        await _send_reply(inbox_id, message_id, generated_subject, summary)
     except Exception:
         logger.exception("Failed to send reply for message %s", message_id)
 
-    return {"status": "ok", "summary": summary}
+    return {"status": "ok", "subject": generated_subject, "summary": summary}

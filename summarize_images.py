@@ -103,22 +103,13 @@ def analyze_email(
     attachments: list[dict] | None = None,
     thread_history: list[dict] | None = None,
     model: str = "claude-opus-4-8",
-) -> str:
+) -> dict:
     """
-    Analyze an email with attachments and thread history, returning an English summary.
-
-    Args:
-        subject: Email subject line.
-        sender: Sender address/name.
-        body: Plain-text email body.
-        attachments: List of {"data": bytes, "media_type": str, "filename": str}.
-                     Supports images (jpeg/png/gif/webp) and PDFs.
-        thread_history: Previous emails in the chain, each a dict with keys
-                        "from", "date", "subject", "text".
-        model: Claude model to use.
+    Analyze an email with attachments and thread history.
 
     Returns:
-        Comprehensive English summary of the email, attachments, and thread context.
+        {"subject": str, "summary": str} — a descriptive subject line and
+        a comprehensive English summary of the email, attachments, and thread.
     """
     attachments = attachments or []
     thread_history = thread_history or []
@@ -163,9 +154,12 @@ def analyze_email(
     content.append({
         "type": "text",
         "text": (
-            "Please provide a comprehensive English summary of this email and its attachments. "
-            "Cover: the sender's intent, key information from any attached German documents, "
-            "action items or deadlines, and how this relates to the prior thread (if any)."
+            "Please respond with exactly two sections, separated by a blank line:\n\n"
+            "SUBJECT: <a concise, descriptive subject line (max 60 chars) based on the actual content — "
+            "ignore the original subject if it is vague, missing, or generic like 'test' or 'hello'>\n\n"
+            "SUMMARY:\n<comprehensive English summary covering: the sender's intent, key information "
+            "from any attached German documents, action items or deadlines, and how this relates to "
+            "the prior thread if any>"
         ),
     })
 
@@ -175,4 +169,17 @@ def analyze_email(
         messages=[{"role": "user", "content": content}],
         max_tokens=2048,
     )
-    return response.content[0].text
+
+    text = response.content[0].text
+    generated_subject = subject  # fallback to original
+    summary = text
+
+    if text.startswith("SUBJECT:"):
+        lines = text.split("\n")
+        generated_subject = lines[0].removeprefix("SUBJECT:").strip()
+        # Everything after the blank line following SUBJECT is the summary
+        rest = "\n".join(lines[1:]).lstrip()
+        if rest.startswith("SUMMARY:"):
+            summary = rest.removeprefix("SUMMARY:").lstrip()
+
+    return {"subject": generated_subject, "summary": summary}
