@@ -54,6 +54,15 @@ async def _fetch_thread_history(inbox_id: str, thread_id: str, current_message_i
     ]
 
 
+async def _fetch_body(body_url: str) -> str:
+    """Fetch the email body from AgentMail's pre-signed S3 URL."""
+    async with httpx.AsyncClient(timeout=30) as http:
+        resp = await http.get(body_url)
+        resp.raise_for_status()
+    data = resp.json()
+    return data.get("text") or data.get("html") or ""
+
+
 async def _download_attachment(inbox_id: str, message_id: str, attachment_id: str) -> bytes:
     """
     Download attachment bytes from AgentMail.
@@ -142,7 +151,16 @@ async def agentmail_webhook(request: Request):
     thread_id = message.get("thread_id", "")
     subject = message.get("subject", "")
     sender = message.get("from", "")
+
+    # Body is delivered via a pre-signed URL, not inline in the webhook payload
     body = message.get("text") or ""
+    body_url = message.get("body_url")
+    if not body and body_url:
+        try:
+            body = await _fetch_body(body_url)
+            logger.info("Fetched body from body_url (%d chars)", len(body))
+        except Exception:
+            logger.exception("Failed to fetch body from body_url")
 
     logger.info(
         "Processing email — inbox: %s  thread: %s  message: %s  subject: %r  attachments: %d",
