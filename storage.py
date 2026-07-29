@@ -42,12 +42,15 @@ def _save_sync(
 ) -> None:
     pdf_gcs_uri: str | None = None
 
+    pdf_public_url: str | None = None
+
     if pdf_bytes:
         blob_path = f"{sender_email}/{event_id}/{pdf_filename}"
         bucket = _gcs().bucket(_GCS_BUCKET)
         blob = bucket.blob(blob_path)
         blob.upload_from_string(pdf_bytes, content_type="application/pdf")
         pdf_gcs_uri = f"gs://{_GCS_BUCKET}/{blob_path}"
+        pdf_public_url = f"https://storage.googleapis.com/{_GCS_BUCKET}/{blob_path}"
         logger.info("PDF saved to %s", pdf_gcs_uri)
 
     doc_ref = (
@@ -64,6 +67,7 @@ def _save_sync(
         "thread_id": thread_id,
         "inbox_id": inbox_id,
         "pdf_gcs_uri": pdf_gcs_uri,
+        "pdf_public_url": pdf_public_url,
         "pdf_filename": pdf_filename,
         "attachment_count": attachment_count,
     })

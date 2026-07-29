@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>myletterbox</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f8f9fa;
+      color: #212529;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: #fff;
+      border-bottom: 1px solid #dee2e6;
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    header h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
+    header h1 span { color: #6c757d; font-weight: 400; }
+
+    #user-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      color: #495057;
+    }
+    #user-info img {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+    }
+    button {
+      padding: 7px 14px;
+      border-radius: 6px;
+      border: 1px solid #dee2e6;
+      background: #fff;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    button:hover { background: #f1f3f5; }
+    button.primary {
+      background: #1a73e8;
+      color: #fff;
+      border-color: #1a73e8;
+    }
+    button.primary:hover { background: #1557b0; }
+
+    /* ── Login screen ── */
+    #login-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: calc(100vh - 56px);
+      gap: 16px;
+      text-align: center;
+      padding: 24px;
+    }
+    #login-screen h2 { font-size: 24px; font-weight: 600; }
+    #login-screen p { color: #6c757d; font-size: 15px; max-width: 360px; }
+
+    /* ── Main content ── */
+    #main { display: none; padding: 24px; max-width: 1100px; margin: 0 auto; }
+
+    /* ── Stats ── */
+    #stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: #fff;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 16px 20px;
+    }
+    .stat-card .value { font-size: 28px; font-weight: 700; color: #1a73e8; }
+    .stat-card .label { font-size: 13px; color: #6c757d; margin-top: 2px; }
+
+    /* ── Toolbar ── */
+    #toolbar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    #search {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid #dee2e6;
+      border-radius: 6px;
+      font-size: 14px;
+      outline: none;
+    }
+    #search:focus { border-color: #1a73e8; }
+
+    /* ── Table ── */
+    .table-wrap {
+      background: #fff;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    thead { background: #f8f9fa; }
+    th {
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 13px;
+      color: #495057;
+      border-bottom: 1px solid #dee2e6;
+      white-space: nowrap;
+    }
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid #f1f3f5;
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr.data-row { cursor: pointer; transition: background 0.1s; }
+    tr.data-row:hover { background: #f8f9fa; }
+
+    .subject-cell { font-weight: 500; max-width: 260px; }
+    .date-cell { white-space: nowrap; color: #6c757d; font-size: 13px; }
+    .att-cell { text-align: center; color: #6c757d; }
+
+    .summary-preview {
+      color: #495057;
+      max-width: 380px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .pdf-link {
+      color: #1a73e8;
+      text-decoration: none;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+    .pdf-link:hover { text-decoration: underline; }
+
+    /* ── Expanded summary row ── */
+    tr.summary-row td {
+      background: #f0f7ff;
+      padding: 16px 20px;
+      border-bottom: 1px solid #dee2e6;
+    }
+    .summary-full {
+      white-space: pre-wrap;
+      font-size: 14px;
+      line-height: 1.65;
+      max-width: 800px;
+    }
+
+    /* ── Empty / loading states ── */
+    .empty {
+      text-align: center;
+      padding: 48px 24px;
+      color: #6c757d;
+    }
+    .loading { text-align: center; padding: 48px; color: #6c757d; }
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid #dee2e6;
+      border-top-color: #1a73e8;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>myletterbox <span>/ documents</span></h1>
+  <div id="user-info">
+    <span id="user-email"></span>
+    <button id="sign-out-btn" style="display:none">Sign out</button>
+  </div>
+</header>
+
+<!-- Login -->
+<div id="login-screen">
+  <h2>myletterbox</h2>
+  <p>Sign in with the Google account you use to send letters to your AgentMail inbox.</p>
+  <button class="primary" id="sign-in-btn">Sign in with Google</button>
+</div>
+
+<!-- Main -->
+<div id="main">
+  <div id="stats">
+    <div class="stat-card">
+      <div class="value" id="stat-total">—</div>
+      <div class="label">Documents processed</div>
+    </div>
+    <div class="stat-card">
+      <div class="value" id="stat-attachments">—</div>
+      <div class="label">Total attachments</div>
+    </div>
+    <div class="stat-card">
+      <div class="value" id="stat-latest">—</div>
+      <div class="label">Latest document</div>
+    </div>
+  </div>
+
+  <div id="toolbar">
+    <input id="search" type="text" placeholder="Search by subject or summary…" />
+    <button id="refresh-btn">↻ Refresh</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Subject</th>
+          <th style="text-align:center">Attachments</th>
+          <th>Summary</th>
+          <th>PDF</th>
+        </tr>
+      </thead>
+      <tbody id="doc-table-body">
+        <tr><td colspan="5" class="loading">
+          <div class="spinner"></div>Loading…
+        </td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+import { getFirestore, collection, getDocs, orderBy, query }
+  from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+
+const app = initializeApp({
+  apiKey:            "AIzaSyC4xOeKa2LqP4gMuVxN2RmOgjvZ7rIFZgE",
+  authDomain:        "project-f33cb18b-d366-43b3-9ee.firebaseapp.com",
+  projectId:         "project-f33cb18b-d366-43b3-9ee",
+  storageBucket:     "project-f33cb18b-d366-43b3-9ee.firebasestorage.app",
+  messagingSenderId: "757041740498",
+  appId:             "1:757041740498:web:7599694bb1226ee5fc8b0b",
+});
+
+const auth = getAuth(app);
+const db   = getFirestore(app);
+const provider = new GoogleAuthProvider();
+
+// ── Auth state ──────────────────────────────────────────────
+onAuthStateChanged(auth, user => {
+  if (user) {
+    document.getElementById("login-screen").style.display = "none";
+    document.getElementById("main").style.display = "block";
+    document.getElementById("sign-out-btn").style.display = "";
+    document.getElementById("user-email").textContent = user.email;
+    loadDocuments(user.email);
+  } else {
+    document.getElementById("login-screen").style.display = "flex";
+    document.getElementById("main").style.display = "none";
+    document.getElementById("sign-out-btn").style.display = "none";
+    document.getElementById("user-email").textContent = "";
+  }
+});
+
+document.getElementById("sign-in-btn").onclick = () =>
+  signInWithPopup(auth, provider).catch(e => alert(e.message));
+
+document.getElementById("sign-out-btn").onclick = () => signOut(auth);
+
+// ── Load documents ───────────────────────────────────────────
+let allDocs = [];
+
+async function loadDocuments(email) {
+  const tbody = document.getElementById("doc-table-body");
+  tbody.innerHTML = `<tr><td colspan="5" class="loading"><div class="spinner"></div>Loading…</td></tr>`;
+
+  try {
+    const q = query(
+      collection(db, "users", email, "documents"),
+      orderBy("timestamp", "desc")
+    );
+    const snap = await getDocs(q);
+    allDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderTable(allDocs);
+    updateStats(allDocs);
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty">Error loading documents: ${e.message}</td></tr>`;
+  }
+}
+
+// ── Render table ─────────────────────────────────────────────
+function renderTable(docs) {
+  const tbody = document.getElementById("doc-table-body");
+
+  if (!docs.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty">No documents yet — send an email with attachments to your AgentMail inbox.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = "";
+
+  docs.forEach(doc => {
+    const date = doc.timestamp?.toDate?.() ?? new Date();
+    const dateStr = date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+    const timeStr = date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+
+    // Data row
+    const tr = document.createElement("tr");
+    tr.className = "data-row";
+    tr.innerHTML = `
+      <td class="date-cell">${dateStr}<br><span style="font-size:12px">${timeStr}</span></td>
+      <td class="subject-cell">${esc(doc.subject || "—")}</td>
+      <td class="att-cell">${doc.attachment_count ?? 0}</td>
+      <td><div class="summary-preview">${esc(doc.summary || "")}</div></td>
+      <td>${doc.pdf_public_url
+        ? `<a class="pdf-link" href="${doc.pdf_public_url}" target="_blank" rel="noopener">
+             ↓ ${esc(doc.pdf_filename || "document.pdf")}
+           </a>`
+        : '<span style="color:#adb5bd;font-size:13px">—</span>'
+      }</td>`;
+
+    // Summary expansion row
+    const summaryRow = document.createElement("tr");
+    summaryRow.className = "summary-row";
+    summaryRow.style.display = "none";
+    summaryRow.innerHTML = `<td colspan="5">
+      <div class="summary-full">${esc(doc.summary || "")}</div>
+    </td>`;
+
+    tr.onclick = () => {
+      const open = summaryRow.style.display !== "none";
+      summaryRow.style.display = open ? "none" : "";
+      tr.style.background = open ? "" : "#e8f0fe";
+    };
+
+    tbody.appendChild(tr);
+    tbody.appendChild(summaryRow);
+  });
+}
+
+// ── Stats ────────────────────────────────────────────────────
+function updateStats(docs) {
+  document.getElementById("stat-total").textContent = docs.length;
+  const totalAtt = docs.reduce((s, d) => s + (d.attachment_count ?? 0), 0);
+  document.getElementById("stat-attachments").textContent = totalAtt;
+  if (docs.length) {
+    const latest = docs[0].timestamp?.toDate?.() ?? new Date();
+    document.getElementById("stat-latest").textContent =
+      latest.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+  }
+}
+
+// ── Search ───────────────────────────────────────────────────
+document.getElementById("search").oninput = e => {
+  const q = e.target.value.toLowerCase();
+  const filtered = q
+    ? allDocs.filter(d =>
+        (d.subject || "").toLowerCase().includes(q) ||
+        (d.summary || "").toLowerCase().includes(q)
+      )
+    : allDocs;
+  renderTable(filtered);
+};
+
+// ── Refresh ──────────────────────────────────────────────────
+document.getElementById("refresh-btn").onclick = () => {
+  const user = auth.currentUser;
+  if (user) loadDocuments(user.email);
+};
+
+// ── Helpers ──────────────────────────────────────────────────
+function esc(s) {
+  return String(s)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+</script>
+</body>
+</html>
