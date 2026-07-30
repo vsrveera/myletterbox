@@ -3,198 +3,439 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark" />
   <title>myletterbox</title>
   <style>
+    /* ── Design tokens ── */
+    :root {
+      --bg:          #f6f7f9;
+      --surface:     #ffffff;
+      --surface-2:   #f1f3f5;
+      --border:      #e3e6ea;
+      --border-strong:#d3d8de;
+      --text:        #16191d;
+      --text-soft:   #495057;
+      --text-muted:  #737d87;
+      --accent:      #1a73e8;
+      --accent-hover:#1557b0;
+      --accent-fg:   #ffffff;
+      --accent-soft: #e8f0fe;
+      --mark:        #fff3bf;
+      --shadow-sm:   0 1px 2px rgba(16,24,40,.05);
+      --shadow-md:   0 4px 16px rgba(16,24,40,.10);
+      --shadow-lg:   -8px 0 32px rgba(16,24,40,.18);
+      --radius:      12px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg:          #0e1116;
+        --surface:     #161a20;
+        --surface-2:   #1e232b;
+        --border:      #272d36;
+        --border-strong:#39414d;
+        --text:        #e6e9ee;
+        --text-soft:   #b6bdc7;
+        --text-muted:  #8a939f;
+        --accent:      #4c9aff;
+        --accent-hover:#6fb0ff;
+        --accent-fg:   #0e1116;
+        --accent-soft: #17293f;
+        --mark:        #4a3d0f;
+        --shadow-sm:   0 1px 2px rgba(0,0,0,.4);
+        --shadow-md:   0 4px 16px rgba(0,0,0,.45);
+        --shadow-lg:   -8px 0 32px rgba(0,0,0,.55);
+      }
+    }
+
+    :root[data-theme="dark"] {
+      --bg:          #0e1116;
+      --surface:     #161a20;
+      --surface-2:   #1e232b;
+      --border:      #272d36;
+      --border-strong:#39414d;
+      --text:        #e6e9ee;
+      --text-soft:   #b6bdc7;
+      --text-muted:  #8a939f;
+      --accent:      #4c9aff;
+      --accent-hover:#6fb0ff;
+      --accent-fg:   #0e1116;
+      --accent-soft: #17293f;
+      --mark:        #4a3d0f;
+      --shadow-sm:   0 1px 2px rgba(0,0,0,.4);
+      --shadow-md:   0 4px 16px rgba(0,0,0,.45);
+      --shadow-lg:   -8px 0 32px rgba(0,0,0,.55);
+    }
+
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #f8f9fa;
-      color: #212529;
+      background: var(--bg);
+      color: var(--text);
       min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
     }
+
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 
     /* ── Header ── */
     header {
-      background: #fff;
-      border-bottom: 1px solid #dee2e6;
-      padding: 0 24px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
       height: 56px;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 12px;
       position: sticky;
       top: 0;
-      z-index: 10;
+      z-index: 30;
     }
-    header h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
-    header h1 span { color: #6c757d; font-weight: 400; }
+    header h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; white-space: nowrap; }
+    header h1 span { color: var(--text-muted); font-weight: 400; }
 
-    #user-info {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 14px;
-      color: #495057;
-    }
-    #user-info img {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-    }
+    #user-info { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--text-soft); min-width: 0; }
+    #user-email { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 34vw; }
+
     button {
-      padding: 7px 14px;
-      border-radius: 6px;
-      border: 1px solid #dee2e6;
-      background: #fff;
+      font-family: inherit;
+      padding: 7px 13px;
+      border-radius: 8px;
+      border: 1px solid var(--border-strong);
+      background: var(--surface);
+      color: var(--text);
       font-size: 14px;
       cursor: pointer;
-      transition: background 0.15s;
+      transition: background .15s, border-color .15s;
     }
-    button:hover { background: #f1f3f5; }
-    button.primary {
-      background: #1a73e8;
-      color: #fff;
-      border-color: #1a73e8;
+    button:hover { background: var(--surface-2); }
+    button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+    button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+    button.icon {
+      width: 34px; height: 34px; padding: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 15px; line-height: 1;
     }
-    button.primary:hover { background: #1557b0; }
 
     /* ── Login screen ── */
     #login-screen {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: calc(100vh - 56px);
-      gap: 16px;
-      text-align: center;
-      padding: 24px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: calc(100vh - 56px); gap: 16px; text-align: center; padding: 24px;
     }
-    #login-screen h2 { font-size: 24px; font-weight: 600; }
-    #login-screen p { color: #6c757d; font-size: 15px; max-width: 360px; }
+    #login-screen h2 { font-size: 26px; font-weight: 650; letter-spacing: -0.5px; }
+    #login-screen p { color: var(--text-muted); font-size: 15px; max-width: 380px; line-height: 1.6; }
 
-    /* ── Main content ── */
-    #main { display: none; padding: 24px; max-width: 1100px; margin: 0 auto; }
+    /* ── Main ── */
+    #main { display: none; padding: 20px; max-width: 1400px; margin: 0 auto; }
+    body.signed-in #main { display: block; }
+    body.signed-in #login-screen { display: none; }
 
     /* ── Stats ── */
     #stats {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 12px;
-      margin-bottom: 24px;
-    }
-    .stat-card {
-      background: #fff;
-      border: 1px solid #dee2e6;
-      border-radius: 8px;
-      padding: 16px 20px;
-    }
-    .stat-card .value { font-size: 28px; font-weight: 700; color: #1a73e8; }
-    .stat-card .label { font-size: 13px; color: #6c757d; margin-top: 2px; }
-
-    /* ── Toolbar ── */
-    #toolbar {
-      display: flex;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
       gap: 10px;
       margin-bottom: 16px;
     }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      box-shadow: var(--shadow-sm);
+    }
+    .stat-card .value { font-size: 24px; font-weight: 680; color: var(--accent); letter-spacing: -0.5px; }
+    .stat-card .label { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+    /* ── Toolbar ── */
+    #toolbar { display: flex; gap: 8px; margin-bottom: 14px; align-items: center; }
+    .search-wrap { position: relative; flex: 1; min-width: 0; }
     #search {
-      flex: 1;
-      padding: 8px 12px;
-      border: 1px solid #dee2e6;
-      border-radius: 6px;
+      width: 100%;
+      padding: 9px 34px 9px 34px;
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
       font-size: 14px;
+      font-family: inherit;
+      background: var(--surface);
+      color: var(--text);
       outline: none;
     }
-    #search:focus { border-color: #1a73e8; }
-
-    /* ── Table ── */
-    .table-wrap {
-      background: #fff;
-      border: 1px solid #dee2e6;
-      border-radius: 8px;
-      overflow: hidden;
+    #search::placeholder { color: var(--text-muted); }
+    #search:focus { border-color: var(--accent); }
+    .search-icon {
+      position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+      color: var(--text-muted); font-size: 13px; pointer-events: none;
     }
-    table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    thead { background: #f8f9fa; }
-    th {
-      padding: 12px 16px;
-      text-align: left;
-      font-weight: 600;
-      font-size: 13px;
-      color: #495057;
-      border-bottom: 1px solid #dee2e6;
+    #search-clear {
+      position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+      border: none; background: none; color: var(--text-muted);
+      width: 24px; height: 24px; border-radius: 6px; display: none;
+      align-items: center; justify-content: center; font-size: 15px; padding: 0;
+    }
+    #search-clear.show { display: inline-flex; }
+
+    .seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 8px; overflow: hidden; }
+    .seg button { border: none; border-radius: 0; padding: 8px 12px; font-size: 13px; background: var(--surface); }
+    .seg button + button { border-left: 1px solid var(--border); }
+    .seg button.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+    #result-count { font-size: 13px; color: var(--text-muted); margin-bottom: 10px; display: none; }
+    #result-count.show { display: block; }
+
+    /* ── Panes ── */
+    #panes { display: grid; grid-template-columns: minmax(320px, 400px) 1fr; gap: 16px; align-items: start; }
+    body.view-table #panes { grid-template-columns: 1fr; }
+    body.view-table #list-pane { display: none; }
+    body.view-list #table-wrap { display: none; }
+
+    /* ── Document list ── */
+    #doc-list { display: flex; flex-direction: column; gap: 6px; }
+
+    .group-header {
+      font-size: 11.5px;
+      font-weight: 650;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color: var(--text-muted);
+      padding: 14px 4px 4px;
+    }
+    .group-header:first-child { padding-top: 2px; }
+
+    .doc-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: border-color .12s, background .12s, box-shadow .12s;
+      position: relative;
+    }
+    .doc-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
+    .doc-card.selected { border-color: var(--accent); background: var(--accent-soft); }
+    .doc-card.cursor::before {
+      content: ""; position: absolute; left: -1px; top: 10px; bottom: 10px;
+      width: 3px; border-radius: 3px; background: var(--accent);
+    }
+    .doc-card.child { margin-left: 18px; border-left: 2px solid var(--border-strong); }
+
+    .card-top { display: flex; gap: 10px; align-items: baseline; justify-content: space-between; }
+    .card-subject {
+      font-size: 14.5px; font-weight: 600; line-height: 1.35;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .card-date { font-size: 12px; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; }
+    .card-preview {
+      font-size: 13px; color: var(--text-soft); line-height: 1.5; margin-top: 5px;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .card-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+
+    .chip {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 2px 8px;
       white-space: nowrap;
     }
-    td {
-      padding: 12px 16px;
-      border-bottom: 1px solid #f1f3f5;
-      vertical-align: top;
+    .doc-card.selected .chip { background: var(--surface); }
+    button.chip { cursor: pointer; font-family: inherit; }
+    button.chip:hover { color: var(--accent); border-color: var(--accent); background: var(--surface); }
+
+    mark { background: var(--mark); color: inherit; border-radius: 2px; padding: 0 1px; }
+
+    /* ── Detail pane ── */
+    #detail {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      position: sticky;
+      top: 76px;
+      max-height: calc(100vh - 96px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
     }
-    tr:last-child td { border-bottom: none; }
-    tr.data-row { cursor: pointer; transition: background 0.1s; }
-    tr.data-row:hover { background: #f8f9fa; }
-
-    .subject-cell { font-weight: 500; max-width: 260px; }
-    .date-cell { white-space: nowrap; color: #6c757d; font-size: 13px; }
-    .att-cell { text-align: center; color: #6c757d; }
-
-    .summary-preview {
-      color: #495057;
-      max-width: 380px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    .detail-head {
+      padding: 18px 22px 14px;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0;
+      background: var(--surface);
+      z-index: 2;
     }
+    /* Lives inside the sticky header so it stays reachable while the body scrolls. */
+    .detail-close {
+      display: none;
+      position: absolute; top: 14px; right: 14px;
+      border: none; background: var(--surface-2);
+      width: 30px; height: 30px; border-radius: 8px; padding: 0;
+      align-items: center; justify-content: center;
+      font-size: 16px; color: var(--text-muted);
+    }
+    .detail-close:hover { background: var(--border); color: var(--text); }
+    .detail-head h2 { font-size: 19px; font-weight: 640; line-height: 1.35; letter-spacing: -0.3px; padding-right: 36px; }
+    .detail-sub { font-size: 13px; color: var(--text-muted); margin-top: 6px; }
+    .detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
+    .detail-body { padding: 20px 22px 28px; }
 
+    .thread-strip { border-top: 1px solid var(--border); padding: 14px 22px 18px; }
+    .thread-strip h3 {
+      font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em;
+      color: var(--text-muted); font-weight: 650; margin-bottom: 8px;
+    }
+    .thread-item {
+      display: flex; justify-content: space-between; gap: 10px; align-items: baseline;
+      padding: 7px 10px; border-radius: 8px; cursor: pointer; font-size: 13px;
+      border: 1px solid transparent;
+    }
+    .thread-item:hover { background: var(--surface-2); border-color: var(--border); }
+    .thread-item.current { background: var(--accent-soft); color: var(--accent); font-weight: 500; }
+    .thread-item span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .thread-item span:last-child { color: var(--text-muted); white-space: nowrap; font-size: 12px; }
+
+    /* ── Rendered markdown ── */
+    .md { font-size: 14.5px; line-height: 1.7; color: var(--text-soft); }
+    .md > *:first-child { margin-top: 0; }
+    .md h2, .md h3, .md h4, .md h5, .md h6 {
+      color: var(--text); font-weight: 650; line-height: 1.35; margin: 22px 0 8px; letter-spacing: -0.2px;
+    }
+    .md h2 { font-size: 17px; }
+    .md h3 { font-size: 15.5px; }
+    .md h4, .md h5, .md h6 { font-size: 14.5px; }
+    .md p { margin: 10px 0; }
+    .md ul, .md ol { margin: 10px 0 10px 22px; }
+    .md li { margin: 5px 0; }
+    .md li::marker { color: var(--text-muted); }
+    .md strong { color: var(--text); font-weight: 630; }
+    .md blockquote {
+      border-left: 3px solid var(--border-strong);
+      padding: 2px 0 2px 14px; margin: 12px 0; color: var(--text-muted);
+    }
+    .md code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: .88em; background: var(--surface-2);
+      border: 1px solid var(--border); border-radius: 5px; padding: 1px 5px;
+    }
+    .md hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+    .md a { color: var(--accent); }
+    .md table { border-collapse: collapse; margin: 12px 0; font-size: 13.5px; width: 100%; }
+    .md th, .md td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+    .md th { background: var(--surface-2); font-weight: 600; color: var(--text); }
+
+    /* ── PDF link ── */
     .pdf-link {
-      color: #1a73e8;
-      text-decoration: none;
-      font-size: 13px;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      white-space: nowrap;
+      color: var(--accent); text-decoration: none; font-size: 13px;
+      display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+      border: 1px solid var(--border-strong); border-radius: 8px; padding: 6px 11px;
+      max-width: 100%;
     }
-    .pdf-link:hover { text-decoration: underline; }
+    .pdf-link:hover { background: var(--accent-soft); border-color: var(--accent); }
+    .pdf-link span { overflow: hidden; text-overflow: ellipsis; }
 
-    /* ── Expanded summary row ── */
-    tr.summary-row td {
-      background: #f0f7ff;
-      padding: 16px 20px;
-      border-bottom: 1px solid #dee2e6;
+    /* ── Table view ── */
+    .table-wrap {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm);
     }
-    .summary-full {
-      white-space: pre-wrap;
-      font-size: 14px;
-      line-height: 1.65;
-      max-width: 800px;
+    .table-scroll { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    thead { background: var(--surface-2); }
+    th {
+      padding: 11px 16px; text-align: left; font-weight: 600; font-size: 12px;
+      text-transform: uppercase; letter-spacing: .05em;
+      color: var(--text-muted); border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    td { padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: top; color: var(--text-soft); }
+    tr:last-child td { border-bottom: none; }
+    tr.data-row { cursor: pointer; transition: background .1s; }
+    tr.data-row:hover { background: var(--surface-2); }
+    tr.data-row.selected { background: var(--accent-soft); }
+    .subject-cell { font-weight: 550; color: var(--text); max-width: 280px; }
+    .date-cell { white-space: nowrap; color: var(--text-muted); font-size: 13px; }
+    .att-cell { text-align: center; color: var(--text-muted); }
+    .summary-preview { max-width: 460px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* ── States ── */
+    .state { text-align: center; padding: 56px 24px; color: var(--text-muted); }
+    .state .state-icon { font-size: 30px; opacity: .55; margin-bottom: 10px; }
+    .state h3 { font-size: 15.5px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+    .state p { font-size: 13.5px; line-height: 1.6; max-width: 380px; margin: 0 auto; }
+    .state.error h3 { color: #d64545; }
+    #detail .state { padding: 72px 24px; }
+
+    .skeleton {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 14px;
+    }
+    .sk-line { height: 10px; border-radius: 4px; background: var(--surface-2); animation: pulse 1.4s ease-in-out infinite; }
+    .sk-line + .sk-line { margin-top: 8px; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+
+    /* ── Keyboard hint ── */
+    #kbd-hint { margin-top: 14px; font-size: 12px; color: var(--text-muted); text-align: center; }
+    kbd {
+      font-family: inherit; font-size: 11px;
+      background: var(--surface); border: 1px solid var(--border-strong);
+      border-bottom-width: 2px; border-radius: 5px; padding: 1px 5px; color: var(--text-soft);
     }
 
-    /* ── Empty / loading states ── */
-    .empty {
-      text-align: center;
-      padding: 48px 24px;
-      color: #6c757d;
+    /* ── Sheet mode (table view + mobile) ── */
+    #backdrop { display: none; position: fixed; inset: 0; background: rgba(8,11,15,.45); z-index: 39; }
+
+    body.view-table #detail {
+      position: fixed; top: 0; right: 0; bottom: 0; left: auto;
+      width: min(600px, 100%); max-height: none; height: 100%;
+      border-radius: 0; border-width: 0 0 0 1px;
+      z-index: 40; box-shadow: var(--shadow-lg);
+      transform: translateX(102%); transition: transform .22s ease;
     }
-    .loading { text-align: center; padding: 48px; color: #6c757d; }
-    .spinner {
-      width: 32px; height: 32px;
-      border: 3px solid #dee2e6;
-      border-top-color: #1a73e8;
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-      margin: 0 auto 12px;
+    body.view-table #detail.open { transform: none; }
+    body.view-table .detail-close { display: inline-flex; }
+    body.view-table.sheet-open #backdrop { display: block; }
+    body.view-table.sheet-open { overflow: hidden; }
+
+    @media (max-width: 900px) {
+      #main { padding: 14px; }
+      #panes { grid-template-columns: 1fr; }
+      /* Keep all three stats on one row instead of wrapping to 2 + 1. */
+      #stats { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+      .stat-card { padding: 10px 12px; }
+      .stat-card .value { font-size: 19px; }
+      .stat-card .label { font-size: 11px; }
+      header { padding: 0 12px; gap: 8px; }
+      button { white-space: nowrap; padding: 7px 10px; }
+      #detail {
+        position: fixed; top: 0; right: 0; bottom: 0; left: auto;
+        width: min(600px, 100%); max-height: none; height: 100%;
+        border-radius: 0; border-width: 0 0 0 1px;
+        z-index: 40; box-shadow: var(--shadow-lg);
+        transform: translateX(102%); transition: transform .22s ease;
+      }
+      #detail.open { transform: none; }
+      .detail-close { display: inline-flex; }
+      body.sheet-open #backdrop { display: block; }
+      body.sheet-open { overflow: hidden; }
+      #kbd-hint { display: none; }
+      header h1 span { display: none; }
+      #user-email { max-width: 30vw; font-size: 13px; }
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
   </style>
 </head>
-<body>
+<body class="view-list">
 
 <header>
   <h1>myletterbox <span>/ documents</span></h1>
   <div id="user-info">
     <span id="user-email"></span>
+    <button class="icon" id="theme-btn" title="Toggle theme" aria-label="Toggle colour theme">◐</button>
     <button id="sign-out-btn" style="display:none">Sign out</button>
   </div>
 </header>
@@ -224,29 +465,53 @@
   </div>
 
   <div id="toolbar">
-    <input id="search" type="text" placeholder="Search by subject or summary…" />
-    <button id="refresh-btn">↻ Refresh</button>
+    <div class="search-wrap">
+      <span class="search-icon">⌕</span>
+      <input id="search" type="text" placeholder="Search subjects and summaries…" autocomplete="off" spellcheck="false" />
+      <button id="search-clear" aria-label="Clear search">×</button>
+    </div>
+    <div class="seg" role="group" aria-label="View mode">
+      <button id="view-list-btn" class="active">Cards</button>
+      <button id="view-table-btn">Table</button>
+    </div>
+    <button class="icon" id="refresh-btn" title="Refresh" aria-label="Refresh">↻</button>
   </div>
 
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Subject</th>
-          <th style="text-align:center">Attachments</th>
-          <th>Summary</th>
-          <th>PDF</th>
-        </tr>
-      </thead>
-      <tbody id="doc-table-body">
-        <tr><td colspan="5" class="loading">
-          <div class="spinner"></div>Loading…
-        </td></tr>
-      </tbody>
-    </table>
+  <div id="result-count"></div>
+
+  <div id="panes">
+    <div id="list-pane">
+      <div id="doc-list"></div>
+    </div>
+
+    <div class="table-wrap" id="table-wrap">
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Subject</th>
+              <th style="text-align:center">Att.</th>
+              <th>Summary</th>
+              <th>PDF</th>
+            </tr>
+          </thead>
+          <tbody id="doc-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="detail" aria-live="polite">
+      <div id="detail-inner"></div>
+    </div>
+  </div>
+
+  <div id="kbd-hint">
+    <kbd>j</kbd> <kbd>k</kbd> navigate · <kbd>Enter</kbd> open · <kbd>/</kbd> search · <kbd>Esc</kbd> close
   </div>
 </div>
+
+<div id="backdrop"></div>
 
 <!-- Firebase SDK -->
 <script type="module">
@@ -269,134 +534,622 @@ const auth = getAuth(app);
 const db   = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
-// ── Auth state ──────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+
+// ── App state ────────────────────────────────────────────────
+let allDocs   = [];                 // newest first
+let viewMode  = localStorage.getItem("mlb-view") === "table" ? "table" : "list";
+let selectedId = null;
+let cursorId   = null;              // keyboard cursor
+let searchQ    = "";
+let loadState  = "loading";         // loading | ready | error
+let loadError  = "";
+const expandedThreads = new Set();
+let navIds = [];                    // doc ids in visual order, for j/k
+
+// ── Theme ────────────────────────────────────────────────────
+const storedTheme = localStorage.getItem("mlb-theme");
+if (storedTheme) document.documentElement.dataset.theme = storedTheme;
+
+$("theme-btn").onclick = () => {
+  const current = document.documentElement.dataset.theme
+    || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const next = current === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem("mlb-theme", next);
+};
+
+// ── Escaping & Markdown ──────────────────────────────────────
+function esc(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+/**
+ * Inline markdown on already-escaped text.
+ * Code spans and links are stashed first so emphasis rules cannot corrupt
+ * URLs containing * or _ characters.
+ */
+function inlineMd(s) {
+  const stash = [];
+  const SEP  = String.fromCharCode(0);   // cannot survive esc(), so it is collision-proof
+  const keep = html => SEP + (stash.push(html) - 1) + SEP;
+
+  s = s.replace(/`([^`]+)`/g, (_, c) => keep(`<code>${c}</code>`));
+  s = s.replace(/\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g,
+        (_, t, u) => keep(`<a href="${u}" target="_blank" rel="noopener noreferrer">${t || u}</a>`));
+  s = s.replace(/https?:\/\/[^\s<)]+/g,
+        m => keep(`<a href="${m}" target="_blank" rel="noopener noreferrer">${m}</a>`));
+
+  s = s
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/__([^_]+)__/g, "<strong>$1</strong>")
+    .replace(/(^|[^*\w])\*([^*\n]+)\*/g, "$1<em>$2</em>")
+    .replace(/(^|[^_\w])_([^_\n]+)_/g, "$1<em>$2</em>")
+    .replace(/~~([^~]+)~~/g, "<del>$1</del>");
+
+  return s.replace(new RegExp(SEP + "(\\d+)" + SEP, "g"), (_, n) => stash[n]);
+}
+
+const BULLET   = /^\s*[-*+]\s+/;
+const ORDERED  = /^\s*\d+[.)]\s+/;
+const HEADING  = /^\s{0,3}(#{1,6})\s+(.*)$/;
+const QUOTE    = /^\s*&gt;\s?/;                       // ">" after escaping
+const RULE     = /^\s*([-*_])(\s*\1){2,}\s*$/;
+const TABLE_SEP= /^\s*\|?[\s:-]*-[\s:|-]*\|?\s*$/;
+
+/** Block-level markdown on already-escaped text. */
+function blocksMd(text) {
+  const lines = text.replace(/\r\n?/g, "\n").split("\n");
+  const out = [];
+  let para = [];
+  let i = 0;
+
+  const flush = () => {
+    if (para.length) { out.push(`<p>${inlineMd(para.join(" "))}</p>`); para = []; }
+  };
+  const cells = row => row.replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|").map(c => c.trim());
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    if (!line.trim())      { flush(); i++; continue; }
+    if (RULE.test(line))   { flush(); out.push("<hr>"); i++; continue; }
+
+    const h = line.match(HEADING);
+    if (h) {
+      flush();
+      const lvl = Math.min(h[1].length + 1, 6);       // demote: page owns <h1>
+      out.push(`<h${lvl}>${inlineMd(h[2].trim())}</h${lvl}>`);
+      i++; continue;
+    }
+
+    if (QUOTE.test(line)) {
+      flush();
+      const buf = [];
+      while (i < lines.length && QUOTE.test(lines[i])) buf.push(lines[i++].replace(QUOTE, ""));
+      out.push(`<blockquote>${blocksMd(buf.join("\n"))}</blockquote>`);
+      continue;
+    }
+
+    // Pipe table: header row followed by a separator row
+    if (line.includes("|") && i + 1 < lines.length && TABLE_SEP.test(lines[i + 1]) && lines[i + 1].includes("-")) {
+      flush();
+      const head = cells(lines[i]);
+      i += 2;
+      const body = [];
+      while (i < lines.length && lines[i].includes("|") && lines[i].trim()) body.push(cells(lines[i++]));
+      out.push(
+        `<table><thead><tr>${head.map(c => `<th>${inlineMd(c)}</th>`).join("")}</tr></thead>` +
+        `<tbody>${body.map(r => `<tr>${r.map(c => `<td>${inlineMd(c)}</td>`).join("")}</tr>`).join("")}</tbody></table>`
+      );
+      continue;
+    }
+
+    const ordered = ORDERED.test(line);
+    if (ordered || BULLET.test(line)) {
+      flush();
+      const marker = ordered ? ORDERED : BULLET;
+      const items = [];
+      while (i < lines.length && marker.test(lines[i])) {
+        let item = lines[i++].replace(marker, "");
+        // fold indented continuation lines into the item
+        while (i < lines.length && lines[i].trim()
+               && !BULLET.test(lines[i]) && !ORDERED.test(lines[i])
+               && !HEADING.test(lines[i]) && !QUOTE.test(lines[i])) {
+          item += " " + lines[i++].trim();
+        }
+        items.push(`<li>${inlineMd(item)}</li>`);
+      }
+      out.push(ordered ? `<ol>${items.join("")}</ol>` : `<ul>${items.join("")}</ul>`);
+      continue;
+    }
+
+    para.push(line.trim());
+    i++;
+  }
+
+  flush();
+  return out.join("");
+}
+
+/** Escape first, then transform — so no raw user HTML can survive. */
+function renderMarkdown(src) {
+  return src ? blocksMd(esc(src)) : "";
+}
+
+/**
+ * Preview text for cards and table rows. Headings are dropped entirely —
+ * Claude's summaries open with "## Summary", which would otherwise make every
+ * preview in the list start with the same useless word.
+ */
+function previewText(src) {
+  const body = String(src ?? "")
+    .split("\n")
+    .filter(l => !/^\s{0,3}#{1,6}\s/.test(l))
+    .join("\n");
+  return stripMarkdown(body);
+}
+
+/** Plain-text version of a markdown summary, for previews and search. */
+function stripMarkdown(src) {
+  return String(src ?? "")
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/^\s{0,3}#{1,6}\s+/gm, "")
+    .replace(/^\s*>\s?/gm, "")
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(/^\s*\d+[.)]\s+/gm, "")
+    .replace(/\*\*|__|~~/g, "")
+    .replace(/[*_]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Escaped text with search matches wrapped in <mark>. */
+function highlight(plain, q) {
+  if (!q) return esc(plain);
+  const idx = plain.toLowerCase().indexOf(q);
+  if (idx === -1) return esc(plain);
+  return esc(plain.slice(0, idx)) + "<mark>" + esc(plain.slice(idx, idx + q.length)) +
+         "</mark>" + esc(plain.slice(idx + q.length));
+}
+
+// ── Dates ────────────────────────────────────────────────────
+const startOfDay = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const daysAgo = d => Math.round((startOfDay(new Date()) - startOfDay(d)) / 86400000);
+
+function docDate(doc) {
+  return doc.timestamp?.toDate?.() ?? new Date(0);
+}
+
+function shortDate(d) {
+  const n = daysAgo(d);
+  if (n <= 0) return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  if (n === 1) return "Yesterday";
+  if (n < 7)   return d.toLocaleDateString("en-GB", { weekday: "short" });
+  if (d.getFullYear() === new Date().getFullYear())
+    return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
+/** Stat-card date — "21:20" is meaningless without a day next to it. */
+function statDate(d) {
+  const n = daysAgo(d);
+  if (n <= 0) return "Today";
+  if (n === 1) return "Yesterday";
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
+function fullDate(d) {
+  return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) +
+         " · " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+}
+
+function timeBucket(d) {
+  const now = new Date();
+  const n = daysAgo(d);
+  if (n <= 0) return { key: "d0", label: "Today" };
+  if (n === 1) return { key: "d1", label: "Yesterday" };
+  if (n < 7)   return { key: "w0", label: "Earlier this week" };
+  if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth())
+    return { key: "m0", label: "Earlier this month" };
+  return {
+    key: `${d.getFullYear()}-${d.getMonth()}`,
+    label: d.toLocaleDateString("en-GB", { month: "long", year: "numeric" }),
+  };
+}
+
+// ── Auth ─────────────────────────────────────────────────────
 onAuthStateChanged(auth, user => {
   if (user) {
-    document.getElementById("login-screen").style.display = "none";
-    document.getElementById("main").style.display = "block";
-    document.getElementById("sign-out-btn").style.display = "";
-    document.getElementById("user-email").textContent = user.email;
+    document.body.classList.add("signed-in");
+    $("sign-out-btn").style.display = "";
+    $("user-email").textContent = user.email;
     loadDocuments(user.email);
   } else {
-    document.getElementById("login-screen").style.display = "flex";
-    document.getElementById("main").style.display = "none";
-    document.getElementById("sign-out-btn").style.display = "none";
-    document.getElementById("user-email").textContent = "";
+    document.body.classList.remove("signed-in");
+    $("sign-out-btn").style.display = "none";
+    $("user-email").textContent = "";
+    allDocs = [];
+    selectedId = cursorId = null;
   }
 });
 
-document.getElementById("sign-in-btn").onclick = () =>
-  signInWithPopup(auth, provider).catch(e => alert(e.message));
+$("sign-in-btn").onclick = () => signInWithPopup(auth, provider).catch(e => alert(e.message));
+$("sign-out-btn").onclick = () => signOut(auth);
 
-document.getElementById("sign-out-btn").onclick = () => signOut(auth);
-
-// ── Load documents ───────────────────────────────────────────
-let allDocs = [];
-
+// ── Load ─────────────────────────────────────────────────────
 async function loadDocuments(email) {
-  const tbody = document.getElementById("doc-table-body");
-  tbody.innerHTML = `<tr><td colspan="5" class="loading"><div class="spinner"></div>Loading…</td></tr>`;
+  loadState = "loading";
+  render();
 
   try {
-    const q = query(
+    const snap = await getDocs(query(
       collection(db, "users", email, "documents"),
       orderBy("timestamp", "desc")
-    );
-    const snap = await getDocs(q);
-    allDocs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderTable(allDocs);
+    ));
+    allDocs = snap.docs.map(d => {
+      const data = d.data();
+      const plain = stripMarkdown(data.summary);
+      return { id: d.id, ...data, _plain: plain, _preview: previewText(data.summary) || plain };
+    });
+    loadState = "ready";
     updateStats(allDocs);
+    render();
+    applyHash();                       // honour #/doc/<id> deep link
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="5" class="empty">Error loading documents: ${e.message}</td></tr>`;
+    loadState = "error";
+    loadError = e.message;
+    render();
   }
 }
 
-// ── Render table ─────────────────────────────────────────────
-function renderTable(docs) {
-  const tbody = document.getElementById("doc-table-body");
+// ── Grouping ─────────────────────────────────────────────────
+function getFiltered() {
+  if (!searchQ) return allDocs;
+  return allDocs.filter(d =>
+    (d.subject || "").toLowerCase().includes(searchQ) ||
+    (d._plain || "").toLowerCase().includes(searchQ)
+  );
+}
 
-  if (!docs.length) {
-    tbody.innerHTML = `<tr><td colspan="5" class="empty">No documents yet — send an email with attachments to your AgentMail inbox.</td></tr>`;
+/** Collapse consecutive documents sharing a thread_id into one group. */
+function buildThreads(docs) {
+  const byThread = new Map();
+  for (const d of docs) {
+    const key = d.thread_id || `solo:${d.id}`;
+    if (!byThread.has(key)) byThread.set(key, []);
+    byThread.get(key).push(d);
+  }
+  // docs arrive newest-first, so each group is already newest-first
+  return [...byThread.entries()].map(([key, items]) => ({ key, items, latest: items[0] }));
+}
+
+function threadSiblings(doc) {
+  if (!doc?.thread_id) return [];
+  const items = allDocs.filter(d => d.thread_id === doc.thread_id);
+  return items.length > 1 ? items : [];
+}
+
+// ── Render ───────────────────────────────────────────────────
+function render() {
+  document.body.classList.toggle("view-list", viewMode === "list");
+  document.body.classList.toggle("view-table", viewMode === "table");
+  $("view-list-btn").classList.toggle("active", viewMode === "list");
+  $("view-table-btn").classList.toggle("active", viewMode === "table");
+
+  const docs = getFiltered();
+  navIds = [];
+
+  renderList(docs);
+  renderTable(docs);
+  renderDetail();
+  renderCount(docs);
+}
+
+function renderCount(docs) {
+  const el = $("result-count");
+  if (loadState !== "ready" || !searchQ) { el.classList.remove("show"); return; }
+  el.textContent = `${docs.length} ${docs.length === 1 ? "result" : "results"} for “${searchQ}”`;
+  el.classList.add("show");
+}
+
+function skeletonCards(n) {
+  return Array.from({ length: n }, () => `
+    <div class="skeleton">
+      <div class="sk-line" style="width:65%"></div>
+      <div class="sk-line" style="width:100%"></div>
+      <div class="sk-line" style="width:82%"></div>
+    </div>`).join("");
+}
+
+function stateBlock(icon, title, body, cls = "") {
+  return `<div class="state ${cls}">
+    <div class="state-icon">${icon}</div>
+    <h3>${esc(title)}</h3>
+    <p>${body}</p>
+  </div>`;
+}
+
+function emptyBlock() {
+  if (loadState === "error")
+    return stateBlock("⚠", "Could not load documents", esc(loadError), "error");
+  if (searchQ)
+    return stateBlock("⌕", "No matches", `Nothing matches “${esc(searchQ)}”. Try a different term.`);
+  return stateBlock("✉", "No documents yet",
+    "Send an email with attachments to your AgentMail inbox and the summary will appear here.");
+}
+
+function cardHtml(doc, isChild, threadCount) {
+  navIds.push(doc.id);
+  const d = docDate(doc);
+  const chips = [];
+  if (doc.attachment_count) chips.push(`<span class="chip">📎 ${doc.attachment_count}</span>`);
+  if (doc.pdf_public_url)   chips.push(`<span class="chip">PDF</span>`);
+  if (threadCount > 1)
+    chips.push(`<button class="chip thread-toggle" data-thread="${esc(doc.thread_id)}">
+      ${expandedThreads.has(doc.thread_id) ? "▾" : "▸"} ${threadCount} messages
+    </button>`);
+
+  return `<article class="doc-card${isChild ? " child" : ""}${doc.id === selectedId ? " selected" : ""}${doc.id === cursorId ? " cursor" : ""}"
+      data-id="${esc(doc.id)}" tabindex="0" role="button" aria-pressed="${doc.id === selectedId}">
+    <div class="card-top">
+      <h3 class="card-subject">${highlight(doc.subject || "Untitled document", searchQ)}</h3>
+      <time class="card-date" datetime="${d.toISOString()}">${esc(shortDate(d))}</time>
+    </div>
+    <p class="card-preview">${highlight(doc._preview || "No summary available.", searchQ)}</p>
+    ${chips.length ? `<div class="card-meta">${chips.join("")}</div>` : ""}
+  </article>`;
+}
+
+function renderList(docs) {
+  const el = $("doc-list");
+
+  if (loadState === "loading") { el.innerHTML = skeletonCards(6); return; }
+  if (!docs.length)            { el.innerHTML = emptyBlock(); return; }
+
+  // While searching, show a flat result list — thread collapsing hides matches.
+  if (searchQ) {
+    el.innerHTML = docs.map(d => cardHtml(d, false, 0)).join("");
     return;
   }
 
-  tbody.innerHTML = "";
+  const html = [];
+  let bucket = null;
 
-  docs.forEach(doc => {
-    const date = doc.timestamp?.toDate?.() ?? new Date();
-    const dateStr = date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-    const timeStr = date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  for (const group of buildThreads(docs)) {
+    const b = timeBucket(docDate(group.latest));
+    if (b.key !== bucket) {
+      bucket = b.key;
+      html.push(`<div class="group-header">${esc(b.label)}</div>`);
+    }
 
-    // Data row
-    const tr = document.createElement("tr");
-    tr.className = "data-row";
-    tr.innerHTML = `
-      <td class="date-cell">${dateStr}<br><span style="font-size:12px">${timeStr}</span></td>
-      <td class="subject-cell">${esc(doc.subject || "—")}</td>
-      <td class="att-cell">${doc.attachment_count ?? 0}</td>
-      <td><div class="summary-preview">${esc(doc.summary || "")}</div></td>
-      <td>${doc.pdf_public_url
-        ? `<a class="pdf-link" href="${doc.pdf_public_url}" target="_blank" rel="noopener">
-             ↓ ${esc(doc.pdf_filename || "document.pdf")}
-           </a>`
-        : '<span style="color:#adb5bd;font-size:13px">—</span>'
-      }</td>`;
+    html.push(cardHtml(group.latest, false, group.items.length));
 
-    // Summary expansion row
-    const summaryRow = document.createElement("tr");
-    summaryRow.className = "summary-row";
-    summaryRow.style.display = "none";
-    summaryRow.innerHTML = `<td colspan="5">
-      <div class="summary-full">${esc(doc.summary || "")}</div>
-    </td>`;
-
-    tr.onclick = () => {
-      const open = summaryRow.style.display !== "none";
-      summaryRow.style.display = open ? "none" : "";
-      tr.style.background = open ? "" : "#e8f0fe";
-    };
-
-    tbody.appendChild(tr);
-    tbody.appendChild(summaryRow);
-  });
-}
-
-// ── Stats ────────────────────────────────────────────────────
-function updateStats(docs) {
-  document.getElementById("stat-total").textContent = docs.length;
-  const totalAtt = docs.reduce((s, d) => s + (d.attachment_count ?? 0), 0);
-  document.getElementById("stat-attachments").textContent = totalAtt;
-  if (docs.length) {
-    const latest = docs[0].timestamp?.toDate?.() ?? new Date();
-    document.getElementById("stat-latest").textContent =
-      latest.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+    if (group.items.length > 1 && expandedThreads.has(group.latest.thread_id)) {
+      for (const child of group.items.slice(1)) html.push(cardHtml(child, true, 0));
+    }
   }
+
+  el.innerHTML = html.join("");
 }
 
-// ── Search ───────────────────────────────────────────────────
-document.getElementById("search").oninput = e => {
-  const q = e.target.value.toLowerCase();
-  const filtered = q
-    ? allDocs.filter(d =>
-        (d.subject || "").toLowerCase().includes(q) ||
-        (d.summary || "").toLowerCase().includes(q)
-      )
-    : allDocs;
-  renderTable(filtered);
-};
+function renderTable(docs) {
+  const tbody = $("doc-table-body");
 
-// ── Refresh ──────────────────────────────────────────────────
-document.getElementById("refresh-btn").onclick = () => {
-  const user = auth.currentUser;
-  if (user) loadDocuments(user.email);
-};
+  if (loadState === "loading") {
+    tbody.innerHTML = Array.from({ length: 6 }, () =>
+      `<tr><td colspan="5"><div class="sk-line" style="width:100%"></div></td></tr>`).join("");
+    return;
+  }
+  if (!docs.length) {
+    tbody.innerHTML = `<tr><td colspan="5">${emptyBlock()}</td></tr>`;
+    return;
+  }
 
-// ── Helpers ──────────────────────────────────────────────────
-function esc(s) {
-  return String(s)
-    .replace(/&/g,"&amp;").replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  tbody.innerHTML = docs.map(doc => {
+    const d = docDate(doc);
+    return `<tr class="data-row${doc.id === selectedId ? " selected" : ""}" data-id="${esc(doc.id)}">
+      <td class="date-cell">${esc(d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }))}
+        <br><span style="font-size:12px">${esc(d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }))}</span></td>
+      <td class="subject-cell">${highlight(doc.subject || "Untitled document", searchQ)}</td>
+      <td class="att-cell">${doc.attachment_count ?? 0}</td>
+      <td><div class="summary-preview">${highlight(doc._preview || "", searchQ)}</div></td>
+      <td>${doc.pdf_public_url
+        ? `<a class="pdf-link" href="${esc(doc.pdf_public_url)}" target="_blank" rel="noopener">↓ <span>PDF</span></a>`
+        : `<span style="color:var(--text-muted);font-size:13px">—</span>`}</td>
+    </tr>`;
+  }).join("");
 }
+
+function renderDetail() {
+  const el = $("detail");
+  const inner = $("detail-inner");
+  const doc = allDocs.find(d => d.id === selectedId);
+
+  el.classList.toggle("open", !!doc);
+  document.body.classList.toggle("sheet-open", !!doc);
+
+  if (!doc) {
+    inner.innerHTML = stateBlock("📄", "No document selected",
+      "Pick a document from the list to read its full summary.");
+    return;
+  }
+
+  const d = docDate(doc);
+  const siblings = threadSiblings(doc);
+
+  inner.innerHTML = `
+    <div class="detail-head">
+      <button class="detail-close" aria-label="Close">×</button>
+      <h2>${esc(doc.subject || "Untitled document")}</h2>
+      <div class="detail-sub">${esc(fullDate(d))}</div>
+      <div class="detail-actions">
+        ${doc.attachment_count ? `<span class="chip">📎 ${doc.attachment_count} attachment${doc.attachment_count === 1 ? "" : "s"}</span>` : ""}
+        ${siblings.length ? `<span class="chip">${siblings.length} in thread</span>` : ""}
+        ${doc.pdf_public_url
+          ? `<a class="pdf-link" href="${esc(doc.pdf_public_url)}" target="_blank" rel="noopener">
+               ↓ <span>${esc(doc.pdf_filename || "document.pdf")}</span></a>`
+          : ""}
+      </div>
+    </div>
+    <div class="detail-body">
+      ${doc.summary
+        ? `<div class="md">${renderMarkdown(doc.summary)}</div>`
+        : `<p style="color:var(--text-muted);font-size:14px">No summary was generated for this document.</p>`}
+    </div>
+    ${siblings.length ? `
+      <div class="thread-strip">
+        <h3>Thread</h3>
+        ${siblings.map(s => `
+          <div class="thread-item${s.id === doc.id ? " current" : ""}" data-id="${esc(s.id)}">
+            <span>${esc(s.subject || "Untitled document")}</span>
+            <span>${esc(shortDate(docDate(s)))}</span>
+          </div>`).join("")}
+      </div>` : ""}`;
+
+  el.scrollTop = 0;
+}
+
+function updateStats(docs) {
+  $("stat-total").textContent = docs.length;
+  $("stat-attachments").textContent = docs.reduce((s, d) => s + (d.attachment_count ?? 0), 0);
+  $("stat-latest").textContent = docs.length ? statDate(docDate(docs[0])) : "—";
+}
+
+// ── Selection & routing ──────────────────────────────────────
+function select(id, { push = true } = {}) {
+  selectedId = id;
+  cursorId = id;
+  render();
+
+  const hash = id ? `#/doc/${encodeURIComponent(id)}` : "";
+  if (location.hash === hash) return;
+  // Cursor movement replaces rather than pushes, so j/k does not flood history.
+  const url = hash || location.pathname + location.search;
+  if (push) history.pushState(null, "", url);
+  else      history.replaceState(null, "", url);
+}
+
+function closeDetail() {
+  selectedId = null;
+  render();
+  if (location.hash) history.pushState(null, "", location.pathname + location.search);
+}
+
+function applyHash() {
+  const m = location.hash.match(/^#\/doc\/(.+)$/);
+  const id = m ? decodeURIComponent(m[1]) : null;
+  if (id && allDocs.some(d => d.id === id)) {
+    selectedId = cursorId = id;
+  } else {
+    selectedId = null;
+  }
+  render();
+}
+
+addEventListener("popstate", applyHash);
+
+// ── Events ───────────────────────────────────────────────────
+$("doc-list").addEventListener("click", e => {
+  if (e.target.closest("a")) return;             // let PDF links through
+  const toggle = e.target.closest(".thread-toggle");
+  if (toggle) {
+    e.stopPropagation();
+    const t = toggle.dataset.thread;
+    expandedThreads.has(t) ? expandedThreads.delete(t) : expandedThreads.add(t);
+    render();
+    return;
+  }
+  const card = e.target.closest(".doc-card");
+  if (card) select(card.dataset.id);
+});
+
+$("doc-list").addEventListener("keydown", e => {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  const card = e.target.closest(".doc-card");
+  if (card) { e.preventDefault(); select(card.dataset.id); }
+});
+
+$("doc-table-body").addEventListener("click", e => {
+  if (e.target.closest("a")) return;             // let PDF links through
+  const row = e.target.closest(".data-row");
+  if (row) select(row.dataset.id);
+});
+
+$("detail-inner").addEventListener("click", e => {
+  if (e.target.closest(".detail-close")) return closeDetail();
+  const item = e.target.closest(".thread-item");
+  if (item) select(item.dataset.id);
+});
+
+$("backdrop").onclick = closeDetail;
+
+$("view-list-btn").onclick = () => { viewMode = "list";  localStorage.setItem("mlb-view", viewMode); render(); };
+$("view-table-btn").onclick = () => { viewMode = "table"; localStorage.setItem("mlb-view", viewMode); render(); };
+
+$("search").oninput = e => {
+  searchQ = e.target.value.trim().toLowerCase();
+  $("search-clear").classList.toggle("show", !!e.target.value);
+  render();
+};
+
+$("search-clear").onclick = () => {
+  $("search").value = "";
+  searchQ = "";
+  $("search-clear").classList.remove("show");
+  render();
+  $("search").focus();
+};
+
+$("refresh-btn").onclick = () => {
+  if (auth.currentUser) loadDocuments(auth.currentUser.email);
+};
+
+// ── Keyboard navigation ──────────────────────────────────────
+addEventListener("keydown", e => {
+  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable;
+
+  if (e.key === "Escape") {
+    if (typing) { e.target.blur(); return; }
+    if (selectedId) closeDetail();
+    return;
+  }
+
+  if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (!document.body.classList.contains("signed-in")) return;
+
+  if (e.key === "/") { e.preventDefault(); $("search").focus(); $("search").select(); return; }
+
+  const list = viewMode === "list" ? navIds : getFiltered().map(d => d.id);
+  if (!list.length) return;
+
+  if (e.key === "j" || e.key === "ArrowDown" || e.key === "k" || e.key === "ArrowUp") {
+    e.preventDefault();
+    const back = e.key === "k" || e.key === "ArrowUp";
+    const at = list.indexOf(cursorId);
+    const next = at === -1
+      ? list[0]
+      : list[Math.min(list.length - 1, Math.max(0, at + (back ? -1 : 1)))];
+    cursorId = next;
+    // On wide screens the detail pane is docked, so move selection with the cursor.
+    if (viewMode === "list" && !matchMedia("(max-width: 900px)").matches) select(next, { push: false });
+    else render();
+    // data-id exists in both views — scope the lookup to the one on screen.
+    const container = viewMode === "list" ? $("doc-list") : $("doc-table-body");
+    container.querySelector(`[data-id="${CSS.escape(next)}"]`)
+      ?.scrollIntoView({ block: "nearest" });
+    return;
+  }
+
+  if (e.key === "Enter" && cursorId) { e.preventDefault(); select(cursorId); }
+});
+
+// ── Boot ─────────────────────────────────────────────────────
+render();
 </script>
 </body>
 </html>
