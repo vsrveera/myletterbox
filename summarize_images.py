@@ -31,7 +31,7 @@ CATEGORIES = [
 
 SYSTEM_PROMPT = (
     "You are an expert assistant that helps understand nonEniglish documents, letters, and emails. "
-    "When given emails with attachments (images or PDFs of German documents), provide a clear "
+    "When a user forwards emails with attachments (images or PDFs of German documents), provide a clear "
     "and comprehensive summary in English covering: the email's context, key information from "
     "any attached the documents, action items or deadlines, and how it relates to the prior "
     "email thread. When given standalone document images with no email context, summarize the "

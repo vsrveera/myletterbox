@@ -349,33 +349,10 @@ async def agentmail_webhook(request: Request):
 # Manual upload + metadata editing (web UI)
 # ---------------------------------------------------------------------------
 
-@app.post("/documents")
-async def upload_document(
-    request: Request,
-    files: list[UploadFile] = File(...),
-    title: str = Form(""),
-):
-    """Manual upload path — classifies and saves attachments the same way the webhook does."""
-    sender = await _verify_user(request)
-
-    if not files:
-        raise HTTPException(status_code=400, detail="At least one file is required.")
-
-    supported_types = ACCEPTED_IMAGE_TYPES | {"application/pdf"}
-    attachments: list[dict] = []
-    original_filenames: list[str] = []
-    for f in files:
-        if f.content_type not in supported_types:
-            raise HTTPException(
-                status_code=415,
-                detail=f"Unsupported file type '{f.content_type}'. Allowed: {sorted(supported_types)}",
-            )
-        data = await f.read()
-        attachments.append({"data": data, "media_type": f.content_type, "filename": f.filename or ""})
-        original_filenames.append(f.filename or "")
-
-    existing_assets = await get_asset_names(sender)
-
+async def _classify_and_save_upload(
+    *, sender: str, title: str, attachments: list[dict], existing_assets: list[str]
+) -> dict:
+    """Classify one group of attachments as a single document and save it. Returns the created document summary."""
     result = analyze_email(
         subject=title,
         sender=sender,
@@ -414,10 +391,60 @@ async def upload_document(
         asset_name=result.get("asset_name"),
         owner=result.get("owner"),
         source="upload",
-        original_filename=", ".join(original_filenames),
+        original_filename=", ".join(a.get("filename", "") for a in attachments),
     )
 
-    return {"status": "ok", "id": event_id, "subject": generated_subject, "summary": summary}
+    return {"id": event_id, "subject": generated_subject, "summary": summary}
+
+
+@app.post("/documents")
+async def upload_document(
+    request: Request,
+    files: list[UploadFile] = File(...),
+    title: str = Form(""),
+    mode: str = Form("merge"),
+):
+    """
+    Manual upload path — classifies and saves attachments the same way the webhook does.
+
+    mode="merge" (default) treats all files as one document (one combined PDF, one
+    classification). mode="separate" classifies and saves each file as its own document.
+    """
+    sender = await _verify_user(request)
+
+    if not files:
+        raise HTTPException(status_code=400, detail="At least one file is required.")
+    if mode not in ("merge", "separate"):
+        raise HTTPException(status_code=400, detail="mode must be 'merge' or 'separate'.")
+
+    supported_types = ACCEPTED_IMAGE_TYPES | {"application/pdf"}
+    attachments: list[dict] = []
+    for f in files:
+        if f.content_type not in supported_types:
+            raise HTTPException(
+                status_code=415,
+                detail=f"Unsupported file type '{f.content_type}'. Allowed: {sorted(supported_types)}",
+            )
+        data = await f.read()
+        attachments.append({"data": data, "media_type": f.content_type, "filename": f.filename or ""})
+
+    existing_assets = await get_asset_names(sender)
+
+    if mode == "separate":
+        documents = []
+        for att in attachments:
+            doc = await _classify_and_save_upload(
+                sender=sender, title=title, attachments=[att], existing_assets=existing_assets,
+            )
+            documents.append(doc)
+            # Refresh so later files in this batch can reuse assets just created.
+            existing_assets = await get_asset_names(sender)
+        return {"status": "ok", "documents": documents}
+
+    doc = await _classify_and_save_upload(
+        sender=sender, title=title, attachments=attachments, existing_assets=existing_assets,
+    )
+    return {"status": "ok", "documents": [doc]}
 
 
 @app.patch("/documents/{doc_id}")

@@ -235,15 +235,20 @@
     #result-count.show { display: block; }
 
     /* ── Panes ── */
-    #panes { display: grid; grid-template-columns: minmax(320px, 400px) 1fr; gap: 16px; align-items: start; }
-    body.view-table #panes { grid-template-columns: 1fr; }
+    #panes { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
     body.view-table #list-pane { display: none; }
     body.view-list #table-wrap { display: none; }
 
-    /* ── Document list ── */
-    #doc-list { display: flex; flex-direction: column; gap: 6px; }
+    /* ── Document grid (matrix) ── */
+    #doc-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 12px;
+      align-items: start;
+    }
 
     .group-header {
+      grid-column: 1 / -1;
       font-size: 11.5px;
       font-weight: 650;
       text-transform: uppercase;
@@ -257,18 +262,19 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 10px;
-      padding: 12px 14px;
+      padding: 14px 16px;
       cursor: pointer;
-      transition: border-color .12s, background .12s, box-shadow .12s;
+      transition: border-color .12s, background .12s, box-shadow .12s, transform .12s;
       position: relative;
+      height: 100%;
     }
-    .doc-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
+    .doc-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); transform: translateY(-2px); }
     .doc-card.selected { border-color: var(--accent); background: var(--accent-soft); }
     .doc-card.cursor::before {
       content: ""; position: absolute; left: -1px; top: 10px; bottom: 10px;
       width: 3px; border-radius: 3px; background: var(--accent);
     }
-    .doc-card.child { margin-left: 18px; border-left: 2px solid var(--border-strong); }
+    .doc-card.child { border-left: 3px solid var(--accent-soft); }
 
     .card-top { display: flex; gap: 10px; align-items: baseline; justify-content: space-between; }
     .card-subject {
@@ -297,18 +303,22 @@
 
     mark { background: var(--mark); color: inherit; border-radius: 2px; padding: 0 1px; }
 
-    /* ── Detail pane ── */
+    /* ── Detail pane (centered modal — the "big card") ── */
     #detail {
+      position: fixed; top: 50%; left: 50%;
+      width: min(760px, 94vw); max-height: 86vh;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      box-shadow: var(--shadow-sm);
-      position: sticky;
-      top: 76px;
-      max-height: calc(100vh - 96px);
+      box-shadow: var(--shadow-lg);
       overflow-y: auto;
       overscroll-behavior: contain;
+      z-index: 45;
+      opacity: 0; pointer-events: none;
+      transform: translate(-50%, -50%) scale(.96);
+      transition: opacity .16s ease, transform .16s ease;
     }
+    #detail.open { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
     .detail-head {
       padding: 18px 22px 14px;
       border-bottom: 1px solid var(--border);
@@ -318,7 +328,7 @@
     }
     /* Lives inside the sticky header so it stays reachable while the body scrolls. */
     .detail-close {
-      display: none;
+      display: inline-flex;
       position: absolute; top: 14px; right: 14px;
       border: none; background: var(--surface-2);
       width: 30px; height: 30px; border-radius: 8px; padding: 0;
@@ -432,24 +442,13 @@
       border-bottom-width: 2px; border-radius: 5px; padding: 1px 5px; color: var(--text-soft);
     }
 
-    /* ── Sheet mode (table view + mobile) ── */
+    /* ── Backdrop (behind the detail modal) ── */
     #backdrop { display: none; position: fixed; inset: 0; background: rgba(8,11,15,.45); z-index: 39; }
-
-    body.view-table #detail {
-      position: fixed; top: 0; right: 0; bottom: 0; left: auto;
-      width: min(600px, 100%); max-height: none; height: 100%;
-      border-radius: 0; border-width: 0 0 0 1px;
-      z-index: 40; box-shadow: var(--shadow-lg);
-      transform: translateX(102%); transition: transform .22s ease;
-    }
-    body.view-table #detail.open { transform: none; }
-    body.view-table .detail-close { display: inline-flex; }
-    body.view-table.sheet-open #backdrop { display: block; }
-    body.view-table.sheet-open { overflow: hidden; }
+    body.sheet-open #backdrop { display: block; }
+    body.sheet-open { overflow: hidden; }
 
     @media (max-width: 900px) {
       #main { padding: 14px; }
-      #panes { grid-template-columns: 1fr; }
       /* Keep all three stats on one row instead of wrapping to 2 + 1. */
       #stats { grid-template-columns: repeat(3, 1fr); gap: 8px; }
       .stat-card { padding: 10px 12px; }
@@ -457,17 +456,7 @@
       .stat-card .label { font-size: 11px; }
       header { padding: 0 12px; gap: 8px; }
       button { white-space: nowrap; padding: 7px 10px; }
-      #detail {
-        position: fixed; top: 0; right: 0; bottom: 0; left: auto;
-        width: min(600px, 100%); max-height: none; height: 100%;
-        border-radius: 0; border-width: 0 0 0 1px;
-        z-index: 40; box-shadow: var(--shadow-lg);
-        transform: translateX(102%); transition: transform .22s ease;
-      }
-      #detail.open { transform: none; }
-      .detail-close { display: inline-flex; }
-      body.sheet-open #backdrop { display: block; }
-      body.sheet-open { overflow: hidden; }
+      #detail { width: 94vw; max-height: 92vh; }
       #kbd-hint { display: none; }
       header h1 span { display: none; }
       #user-email { max-width: 30vw; font-size: 13px; }
@@ -500,6 +489,45 @@
     }
     .chip-btn:hover { border-color: var(--accent); }
     .chip-btn.active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); font-weight: 600; }
+
+    /* ── Category folder tiles ── */
+    #category-bar { gap: 10px; }
+    .folder-btn {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      width: 92px; padding: 12px 8px 9px; gap: 5px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      font-family: inherit; cursor: pointer; transition: border-color .12s, background .12s, transform .12s;
+    }
+    .folder-btn:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+    .folder-btn.active { border-color: var(--accent); background: var(--accent-soft); }
+    .folder-icon { width: 36px; height: 27px; position: relative; }
+    .folder-icon::before {
+      content: ""; position: absolute; top: 0; left: 0; width: 15px; height: 6px;
+      background: var(--text-muted); border-radius: 3px 4px 0 0;
+    }
+    .folder-icon::after {
+      content: ""; position: absolute; top: 4px; left: 0; width: 36px; height: 23px;
+      background: var(--surface-2); border: 1.5px solid var(--border-strong);
+      border-radius: 2px 7px 7px 7px;
+    }
+    .folder-btn.active .folder-icon::before,
+    .folder-btn.active .folder-icon::after { background: var(--accent); border-color: var(--accent); }
+    .folder-btn.active .folder-icon::after { background: var(--surface); }
+    .folder-label {
+      font-size: 11.5px; font-weight: 600; color: var(--text); text-align: center;
+      line-height: 1.25; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+      white-space: nowrap; width: 100%;
+    }
+    .folder-btn.active .folder-label { color: var(--accent); }
+    .folder-count { font-size: 10.5px; color: var(--text-muted); }
+
+    #asset-bar { gap: 8px; }
+    .folder-btn.sub { width: 72px; padding: 9px 6px 7px; gap: 4px; }
+    .folder-btn.sub .folder-icon { width: 28px; height: 21px; }
+    .folder-btn.sub .folder-icon::before { width: 12px; height: 5px; }
+    .folder-btn.sub .folder-icon::after { top: 3px; width: 28px; height: 18px; }
+    .folder-btn.sub .folder-label { font-size: 10.5px; }
+    .folder-btn.sub .folder-count { font-size: 9.5px; }
 
     select.filter-select {
       font-family: inherit; font-size: 13px; padding: 8px 10px;
@@ -554,6 +582,16 @@
     #upload-status { font-size: 13px; color: var(--text-muted); min-height: 18px; }
     #upload-status.error { color: #d64545; }
 
+    .upload-mode { display: flex; flex-direction: column; gap: 8px; }
+    .upload-mode-option {
+      display: flex; gap: 9px; align-items: flex-start; padding: 10px 12px;
+      border: 1px solid var(--border-strong); border-radius: 8px; cursor: pointer;
+    }
+    .upload-mode-option:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+    .upload-mode-option input { margin-top: 3px; accent-color: var(--accent); }
+    .upload-mode-option strong { font-size: 13.5px; font-weight: 600; display: block; }
+    .upload-mode-option small { font-size: 12px; color: var(--text-muted); line-height: 1.4; display: block; margin-top: 2px; }
+
     /* ── Detail metadata editors ── */
     .detail-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
     .detail-meta select, .detail-meta input[type="text"] {
@@ -571,8 +609,8 @@
 <header>
   <h1>Life Cabinet</h1>
   <nav id="tabs" role="tablist" aria-label="Sections">
-    <button class="tab-btn active" data-tab="home" role="tab" aria-selected="true">Home</button>
-    <button class="tab-btn" data-tab="cabinet" role="tab" aria-selected="false">Cabinet</button>
+    <button class="tab-btn" data-tab="home" role="tab" aria-selected="false">Home</button>
+    <button class="tab-btn active" data-tab="cabinet" role="tab" aria-selected="true">Cabinet</button>
     <button class="tab-btn" data-tab="workflow" role="tab" aria-selected="false">Workflow</button>
   </nav>
   <div id="user-info">
@@ -751,6 +789,16 @@
     <h2>Upload document</h2>
     <input type="text" id="upload-title" placeholder="Title (optional)" />
     <input type="file" id="upload-files" multiple accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.pdf,application/pdf" />
+    <div id="upload-mode-group" class="upload-mode" role="radiogroup" aria-label="How to process the selected files" style="display:none">
+      <label class="upload-mode-option">
+        <input type="radio" name="upload-mode" value="merge" checked />
+        <span><strong>Merge into one document</strong><small>All files become a single document — use this for multiple pages of the same letter</small></span>
+      </label>
+      <label class="upload-mode-option">
+        <input type="radio" name="upload-mode" value="separate" />
+        <span><strong>Process separately</strong><small>Each file is classified and saved as its own document</small></span>
+      </label>
+    </div>
     <div id="upload-status"></div>
     <div class="modal-actions">
       <button id="upload-cancel-btn">Cancel</button>
@@ -802,7 +850,7 @@ let loadState  = "loading";         // loading | ready | error
 let loadError  = "";
 const expandedThreads = new Set();
 let navIds = [];                    // doc ids in visual order, for j/k
-let activeTab = "home";             // home | cabinet | workflow
+let activeTab = "cabinet";          // home | cabinet | workflow
 let activeCategory = null;
 let activeAsset = null;
 let statusFilter = "";
@@ -1346,10 +1394,14 @@ function updateStats(docs) {
   $("stat-latest").textContent = docs.length ? statDate(docDate(docs[0])) : "—";
 }
 
-// ── Category / asset chip filters ───────────────────────────────
-function chipBtn(label, active, dataset) {
+// ── Category / asset folder-tile filters ────────────────────────
+function folderBtn(label, count, active, dataset, extraClass = "") {
   const attrs = Object.entries(dataset).map(([k, v]) => `data-${k}="${esc(v)}"`).join(" ");
-  return `<button class="chip-btn${active ? " active" : ""}" ${attrs}>${esc(label)}</button>`;
+  return `<button class="chip-btn folder-btn${extraClass ? " " + extraClass : ""}${active ? " active" : ""}" ${attrs}>
+    <span class="folder-icon"></span>
+    <span class="folder-label">${esc(label)}</span>
+    <span class="folder-count">${count}</span>
+  </button>`;
 }
 
 function renderCategoryBar() {
@@ -1361,8 +1413,8 @@ function renderCategoryBar() {
   const cats = CATEGORIES.filter(c => counts[c]);
   if (counts["Uncategorized"]) cats.push("Uncategorized");
 
-  const html = [chipBtn(`All (${allDocs.length})`, !activeCategory, { cat: "" })];
-  for (const c of cats) html.push(chipBtn(`${c} (${counts[c]})`, activeCategory === c, { cat: c }));
+  const html = [folderBtn("All", allDocs.length, !activeCategory, { cat: "" })];
+  for (const c of cats) html.push(folderBtn(c, counts[c], activeCategory === c, { cat: c }));
   $("category-bar").innerHTML = allDocs.length ? html.join("") : "";
 }
 
@@ -1379,10 +1431,10 @@ function renderAssetBar() {
   const assetIds = Object.keys(counts);
   if (!assetIds.length) { bar.innerHTML = ""; return; }
 
-  const html = [chipBtn(`All assets`, !activeAsset, { asset: "" })];
+  const html = [folderBtn("All assets", inCategory.length, !activeAsset, { asset: "" }, "sub")];
   for (const id of assetIds) {
     const name = allAssets.find(a => a.id === id)?.name || "Unnamed asset";
-    html.push(chipBtn(`${name} (${counts[id]})`, activeAsset === id, { asset: id }));
+    html.push(folderBtn(name, counts[id], activeAsset === id, { asset: id }, "sub"));
   }
   bar.innerHTML = html.join("");
 }
@@ -1647,6 +1699,8 @@ function openUploadModal() {
   $("upload-files").value = "";
   $("upload-status").textContent = "";
   $("upload-status").classList.remove("error");
+  $("upload-mode-group").style.display = "none";
+  $$('input[name="upload-mode"]').forEach(r => r.checked = r.value === "merge");
   $("upload-modal").style.display = "flex";
 }
 function closeUploadModal() { $("upload-modal").style.display = "none"; }
@@ -1654,6 +1708,10 @@ function closeUploadModal() { $("upload-modal").style.display = "none"; }
 $("upload-btn").onclick = openUploadModal;
 $("upload-cancel-btn").onclick = closeUploadModal;
 $("upload-modal").addEventListener("click", e => { if (e.target === $("upload-modal")) closeUploadModal(); });
+
+$("upload-files").onchange = () => {
+  $("upload-mode-group").style.display = $("upload-files").files.length > 1 ? "flex" : "none";
+};
 
 $("upload-submit-btn").onclick = async () => {
   const files = $("upload-files").files;
@@ -1663,15 +1721,19 @@ $("upload-submit-btn").onclick = async () => {
     return;
   }
 
+  const mode = document.querySelector('input[name="upload-mode"]:checked')?.value || "merge";
   const statusEl = $("upload-status");
   statusEl.classList.remove("error");
-  statusEl.textContent = "Uploading and classifying…";
+  statusEl.textContent = mode === "separate"
+    ? `Uploading and classifying ${files.length} documents…`
+    : "Uploading and classifying…";
   $("upload-submit-btn").disabled = true;
 
   try {
     const form = new FormData();
     for (const f of files) form.append("files", f);
     form.append("title", $("upload-title").value.trim());
+    form.append("mode", files.length > 1 ? mode : "merge");
 
     const token = await auth.currentUser.getIdToken();
     const res = await fetch(`${API_BASE}/documents`, {
@@ -1720,9 +1782,7 @@ addEventListener("keydown", e => {
       ? list[0]
       : list[Math.min(list.length - 1, Math.max(0, at + (back ? -1 : 1)))];
     cursorId = next;
-    // On wide screens the detail pane is docked, so move selection with the cursor.
-    if (viewMode === "list" && !matchMedia("(max-width: 900px)").matches) select(next, { push: false });
-    else render();
+    render();
     // data-id exists in both views — scope the lookup to the one on screen.
     const container = viewMode === "list" ? $("doc-list") : $("doc-table-body");
     container.querySelector(`[data-id="${CSS.escape(next)}"]`)
