@@ -9,6 +9,11 @@ logger = logging.getLogger("myletterbox")
 
 _GCS_BUCKET = os.environ.get("GCS_BUCKET", "myletterbox-757041740498")
 
+# Fields a client is allowed to change via the PATCH /documents/{id} endpoint.
+EDITABLE_DOCUMENT_FIELDS = {
+    "workflow_status", "category", "asset_name", "tags", "subject", "summary",
+}
+
 # Clients are created lazily so the module can be imported without credentials
 _fs_client: firestore.Client | None = None
 _gcs_client: storage.Client | None = None
@@ -28,6 +33,37 @@ def _gcs() -> storage.Client:
     return _gcs_client
 
 
+def _get_asset_names_sync(sender_email: str) -> list[str]:
+    docs = _fs().collection("users").document(sender_email).collection("assets").stream()
+    return [d.get("name") for d in docs if d.get("name")]
+
+
+async def get_asset_names(sender_email: str) -> list[str]:
+    """Return the names of this user's existing assets, for AI classification hints."""
+    return await asyncio.to_thread(_get_asset_names_sync, sender_email)
+
+
+def _get_or_create_asset(sender_email: str, asset_name: str, category: str | None) -> str | None:
+    """Case-insensitive get-or-create of an asset by name. Returns the asset_id, or None if asset_name is empty."""
+    asset_name = (asset_name or "").strip()
+    if not asset_name:
+        return None
+
+    assets_ref = _fs().collection("users").document(sender_email).collection("assets")
+    for doc in assets_ref.stream():
+        if (doc.get("name") or "").strip().lower() == asset_name.lower():
+            return doc.id
+
+    new_ref = assets_ref.document()
+    new_ref.set({
+        "name": asset_name,
+        "category": category,
+        "created_at": datetime.now(timezone.utc),
+    })
+    logger.info("Created asset %r (%s) for %s", asset_name, new_ref.id, sender_email)
+    return new_ref.id
+
+
 def _save_sync(
     *,
     sender_email: str,
@@ -39,6 +75,15 @@ def _save_sync(
     pdf_bytes: bytes | None,
     pdf_filename: str,
     attachment_count: int,
+    category: str | None = None,
+    document_type: str | None = None,
+    tags: list[str] | None = None,
+    document_date: str | None = None,
+    expiry_date: str | None = None,
+    asset_name: str | None = None,
+    owner: str | None = None,
+    source: str = "email",
+    original_filename: str | None = None,
 ) -> None:
     pdf_gcs_uri: str | None = None
 
@@ -52,6 +97,8 @@ def _save_sync(
         pdf_gcs_uri = f"gs://{_GCS_BUCKET}/{blob_path}"
         pdf_public_url = f"https://storage.googleapis.com/{_GCS_BUCKET}/{blob_path}"
         logger.info("PDF saved to %s", pdf_gcs_uri)
+
+    asset_id = _get_or_create_asset(sender_email, asset_name or "", category)
 
     doc_ref = (
         _fs()
@@ -70,6 +117,17 @@ def _save_sync(
         "pdf_public_url": pdf_public_url,
         "pdf_filename": pdf_filename,
         "attachment_count": attachment_count,
+        "category": category,
+        "document_type": document_type,
+        "workflow_status": "Inbox",
+        "tags": tags or [],
+        "document_date": document_date,
+        "expiry_date": expiry_date,
+        "asset_id": asset_id,
+        "asset_name": asset_name if asset_id else None,
+        "owner": owner,
+        "source": source,
+        "original_filename": original_filename,
     })
     logger.info("Saved to Firestore: users/%s/documents/%s", sender_email, event_id)
 
@@ -85,6 +143,15 @@ async def save_document(
     pdf_bytes: bytes | None,
     pdf_filename: str,
     attachment_count: int,
+    category: str | None = None,
+    document_type: str | None = None,
+    tags: list[str] | None = None,
+    document_date: str | None = None,
+    expiry_date: str | None = None,
+    asset_name: str | None = None,
+    owner: str | None = None,
+    source: str = "email",
+    original_filename: str | None = None,
 ) -> None:
     """Async wrapper — runs sync GCS + Firestore writes in a thread pool."""
     await asyncio.to_thread(
@@ -98,4 +165,39 @@ async def save_document(
         pdf_bytes=pdf_bytes,
         pdf_filename=pdf_filename,
         attachment_count=attachment_count,
+        category=category,
+        document_type=document_type,
+        tags=tags,
+        document_date=document_date,
+        expiry_date=expiry_date,
+        asset_name=asset_name,
+        owner=owner,
+        source=source,
+        original_filename=original_filename,
     )
+
+
+def _update_document_fields_sync(sender_email: str, doc_id: str, updates: dict) -> None:
+    safe_updates = {k: v for k, v in updates.items() if k in EDITABLE_DOCUMENT_FIELDS}
+    if not safe_updates:
+        return
+
+    doc_ref = (
+        _fs()
+        .collection("users")
+        .document(sender_email)
+        .collection("documents")
+        .document(doc_id)
+    )
+
+    if "asset_name" in safe_updates:
+        category = safe_updates.get("category") or doc_ref.get().get("category")
+        safe_updates["asset_id"] = _get_or_create_asset(sender_email, safe_updates["asset_name"], category)
+
+    doc_ref.update(safe_updates)
+    logger.info("Updated users/%s/documents/%s: %s", sender_email, doc_id, list(safe_updates.keys()))
+
+
+async def update_document_fields(sender_email: str, doc_id: str, updates: dict) -> None:
+    """Apply a whitelisted set of metadata edits to a document the user owns."""
+    await asyncio.to_thread(_update_document_fields_sync, sender_email, doc_id, updates)

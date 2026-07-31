@@ -1,5 +1,6 @@
 import base64
 import io
+import json
 import mimetypes
 from pathlib import Path
 
@@ -12,13 +13,29 @@ pillow_heif.register_heif_opener()  # adds HEIC/HEIF support to Pillow
 
 client = anthropic.Anthropic()
 
+CATEGORIES = [
+    "Identity & Legal",
+    "Finance",
+    "Property",
+    "Vehicles",
+    "Insurance",
+    "Health",
+    "Family",
+    "Career & Business",
+    "Education",
+    "Travel",
+    "Purchases & Warranties",
+    "Reference",
+    "Archive",
+]
+
 SYSTEM_PROMPT = (
-    "You are an expert assistant that helps understand German documents, letters, and emails. "
+    "You are an expert assistant that helps understand nonEniglish documents, letters, and emails. "
     "When given emails with attachments (images or PDFs of German documents), provide a clear "
-    "and comprehensive summary in English covering: the sender's intent, key information from "
-    "any attached German documents, action items or deadlines, and how it relates to the prior "
+    "and comprehensive summary in English covering: the email's context, key information from "
+    "any attached the documents, action items or deadlines, and how it relates to the prior "
     "email thread. When given standalone document images with no email context, summarize the "
-    "document content including sender, recipient, key topics, and overall purpose."
+    "document content including key topics, and overall purpose. I don't have to mention reciever's name as this summary will be provided to reciever as a summary"
 )
 
 # Formats Claude accepts natively
@@ -137,17 +154,21 @@ def analyze_email(
     body: str = "",
     attachments: list[dict] | None = None,
     thread_history: list[dict] | None = None,
+    existing_assets: list[str] | None = None,
     model: str = "claude-opus-4-8",
 ) -> dict:
     """
     Analyze an email with attachments and thread history.
 
-    Returns:
-        {"subject": str, "summary": str} — a descriptive subject line and
-        a comprehensive English summary of the email, attachments, and thread.
+    Returns a dict with:
+        subject, summary — descriptive subject line and English summary
+        category — one of CATEGORIES
+        document_type, tags, document_date, expiry_date, asset_name, owner
+            — best-effort metadata, null/empty when not determinable
     """
     attachments = attachments or []
     thread_history = thread_history or []
+    existing_assets = existing_assets or []
 
     content: list[dict] = []
 
@@ -186,15 +207,37 @@ def analyze_email(
                 "source": {"type": "base64", "media_type": "application/pdf", "data": base64.standard_b64encode(raw).decode()},
             })
 
+    assets_hint = (
+        f"The user already has these assets on file: {', '.join(existing_assets)}. "
+        "Reuse one of these names verbatim if this document clearly belongs to it."
+        if existing_assets
+        else "The user has no assets on file yet."
+    )
+
     content.append({
         "type": "text",
         "text": (
-            "Please respond with exactly two sections, separated by a blank line:\n\n"
-            "SUBJECT: <a concise, descriptive subject line (max 60 chars) based on the actual content — "
-            "ignore the original subject if it is vague, missing, or generic like 'test' or 'hello'>\n\n"
-            "SUMMARY:\n<comprehensive English summary covering: the sender's intent, key information "
-            "from any attached German documents, action items or deadlines, and how this relates to "
-            "the prior thread if any>"
+            "Respond with ONLY a single JSON object (no markdown fences, no prose "
+            "outside the JSON), with exactly these keys:\n\n"
+            '  "subject": concise descriptive subject line (max 60 chars) based on the '
+            "actual content — ignore the original subject if it is vague, missing, or "
+            "generic like 'test' or 'hello'\n"
+            '  "summary": comprehensive English summary covering the sender\'s intent, '
+            "key information from any attached German documents, action items or "
+            "deadlines, and how this relates to the prior thread if any\n"
+            f'  "category": exactly one of {json.dumps(CATEGORIES)}\n'
+            '  "document_type": short free-text type, e.g. "Invoice", "Insurance Policy", '
+            '"Utility Bill", "Contract"\n'
+            '  "tags": array of 1-5 short lowercase tags\n'
+            '  "document_date": ISO date (YYYY-MM-DD) the document itself is dated, or '
+            "null if not determinable\n"
+            '  "expiry_date": ISO date (YYYY-MM-DD) this document expires or is due/renews, '
+            "or null if not applicable\n"
+            f'  "asset_name": the real-world entity this document belongs to (e.g. "BMW '
+            'iX3", "Frankfurt Apartment"), or null if it doesn\'t clearly belong to one. '
+            f"{assets_hint}\n"
+            '  "owner": the person\'s name this document concerns, or null if not '
+            "identifiable"
         ),
     })
 
@@ -205,16 +248,36 @@ def analyze_email(
         max_tokens=2048,
     )
 
-    text = response.content[0].text
-    generated_subject = subject  # fallback to original
-    summary = text
+    text = response.content[0].text.strip()
+    result = {
+        "subject": subject,
+        "summary": text,
+        "category": None,
+        "document_type": None,
+        "tags": [],
+        "document_date": None,
+        "expiry_date": None,
+        "asset_name": None,
+        "owner": None,
+    }
 
-    if text.startswith("SUBJECT:"):
-        lines = text.split("\n")
-        generated_subject = lines[0].removeprefix("SUBJECT:").strip()
-        # Everything after the blank line following SUBJECT is the summary
-        rest = "\n".join(lines[1:]).lstrip()
-        if rest.startswith("SUMMARY:"):
-            summary = rest.removeprefix("SUMMARY:").lstrip()
+    try:
+        if text.startswith("```"):
+            text = text.strip("`")
+            text = text.split("\n", 1)[1] if "\n" in text else text
+        parsed = json.loads(text)
+        result["subject"] = (parsed.get("subject") or subject) or subject
+        result["summary"] = parsed.get("summary") or result["summary"]
+        if parsed.get("category") in CATEGORIES:
+            result["category"] = parsed["category"]
+        result["document_type"] = parsed.get("document_type") or None
+        tags = parsed.get("tags")
+        result["tags"] = [str(t) for t in tags] if isinstance(tags, list) else []
+        result["document_date"] = parsed.get("document_date") or None
+        result["expiry_date"] = parsed.get("expiry_date") or None
+        result["asset_name"] = parsed.get("asset_name") or None
+        result["owner"] = parsed.get("owner") or None
+    except (json.JSONDecodeError, AttributeError, IndexError):
+        pass  # keep the plain-text fallback populated above
 
-    return {"subject": generated_subject, "summary": summary}
+    return result

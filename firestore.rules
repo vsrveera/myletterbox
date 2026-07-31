@@ -5,5 +5,9 @@ service cloud.firestore {
       allow read: if request.auth != null
                   && request.auth.token.email == email;
     }
+    match /users/{email}/assets/{assetId} {
+      allow read: if request.auth != null
+                  && request.auth.token.email == email;
+    }
   }
 }

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="light dark" />
-  <title>myletterbox</title>
+  <title>Life Cabinet</title>
   <style>
     /* ── Design tokens ── */
     :root {
@@ -119,13 +119,62 @@
       font-size: 15px; line-height: 1;
     }
 
-    /* ── Login screen ── */
-    #login-screen {
+    /* ── Landing page ── */
+    #login-screen { padding: 0 24px 80px; }
+
+    .hero {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      min-height: calc(100vh - 56px); gap: 16px; text-align: center; padding: 24px;
+      text-align: center; gap: 18px;
+      min-height: calc(72vh - 56px); padding: 48px 16px 40px;
+      max-width: 640px; margin: 0 auto;
     }
-    #login-screen h2 { font-size: 26px; font-weight: 650; letter-spacing: -0.5px; }
-    #login-screen p { color: var(--text-muted); font-size: 15px; max-width: 380px; line-height: 1.6; }
+    .hero-badge {
+      font-size: 12.5px; font-weight: 650; letter-spacing: .04em; color: var(--accent);
+      background: var(--accent-soft); border-radius: 999px; padding: 5px 14px;
+    }
+    .hero h2 {
+      font-size: 40px; font-weight: 700; letter-spacing: -1px; line-height: 1.15;
+    }
+    .hero h2 span { color: var(--accent); }
+    .hero p.lede {
+      color: var(--text-soft); font-size: 17px; max-width: 480px; line-height: 1.6;
+    }
+    .hero-actions { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 6px; }
+    .hero-actions button.primary { font-size: 15px; padding: 11px 22px; }
+    .hero-actions p { color: var(--text-muted); font-size: 13px; max-width: 340px; line-height: 1.5; }
+
+    .landing-section { max-width: 1040px; margin: 0 auto; padding: 40px 0; }
+    .landing-section h3 {
+      text-align: center; font-size: 13px; font-weight: 650; text-transform: uppercase;
+      letter-spacing: .08em; color: var(--text-muted); margin-bottom: 28px;
+    }
+
+    .feature-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;
+    }
+    .feature-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 20px; text-align: left; box-shadow: var(--shadow-sm);
+    }
+    .feature-card .feature-icon { font-size: 22px; margin-bottom: 10px; }
+    .feature-card h4 { font-size: 15px; font-weight: 640; margin-bottom: 6px; letter-spacing: -0.2px; }
+    .feature-card p { color: var(--text-muted); font-size: 13.5px; line-height: 1.55; }
+
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    .step { text-align: center; padding: 0 10px; }
+    .step .step-num {
+      width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); color: var(--accent);
+      display: flex; align-items: center; justify-content: center; font-weight: 650; font-size: 14px;
+      margin: 0 auto 12px;
+    }
+    .step h4 { font-size: 14.5px; font-weight: 620; margin-bottom: 5px; }
+    .step p { color: var(--text-muted); font-size: 13px; line-height: 1.55; }
+
+    @media (max-width: 640px) {
+      .hero h2 { font-size: 30px; }
+      .hero p.lede { font-size: 15.5px; }
+      .steps { grid-template-columns: 1fr; gap: 22px; }
+    }
 
     /* ── Main ── */
     #main { display: none; padding: 20px; max-width: 1400px; margin: 0 auto; }
@@ -427,12 +476,105 @@
     @media (prefers-reduced-motion: reduce) {
       * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
     }
+
+    /* ── Nav tabs ── */
+    #tabs { display: flex; gap: 2px; }
+    .tab-btn {
+      border: none; background: none; padding: 8px 13px; border-radius: 8px;
+      font-size: 14px; color: var(--text-soft); cursor: pointer; white-space: nowrap;
+    }
+    .tab-btn:hover { background: var(--surface-2); }
+    .tab-btn.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+    #home-view, #cabinet-view, #workflow-view { display: none; }
+    body.tab-home #home-view { display: block; }
+    body.tab-cabinet #cabinet-view { display: block; }
+    body.tab-workflow #workflow-view { display: block; }
+
+    /* ── Chip filter bars ── */
+    .chip-bar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .chip-btn {
+      font-family: inherit; font-size: 12.5px; color: var(--text-soft);
+      background: var(--surface); border: 1px solid var(--border-strong);
+      border-radius: 999px; padding: 5px 12px; cursor: pointer; white-space: nowrap;
+    }
+    .chip-btn:hover { border-color: var(--accent); }
+    .chip-btn.active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); font-weight: 600; }
+
+    select.filter-select {
+      font-family: inherit; font-size: 13px; padding: 8px 10px;
+      border: 1px solid var(--border-strong); border-radius: 8px;
+      background: var(--surface); color: var(--text);
+    }
+
+    /* ── Home dashboard ── */
+    .dash-section { margin-bottom: 24px; }
+    .dash-title {
+      font-size: 13px; font-weight: 650; text-transform: uppercase; letter-spacing: .06em;
+      color: var(--text-muted); margin-bottom: 10px;
+    }
+    .dash-list { display: flex; flex-direction: column; gap: 6px; }
+    .dash-empty { font-size: 13.5px; color: var(--text-muted); padding: 10px 2px; }
+
+    /* ── Workflow board ── */
+    #workflow-board {
+      display: grid; grid-template-columns: repeat(4, minmax(220px, 1fr));
+      gap: 14px; align-items: start;
+    }
+    @media (max-width: 900px) { #workflow-board { grid-template-columns: 1fr; } }
+    .wf-column {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 12px; min-height: 80px;
+    }
+    .wf-column h3 { font-size: 13.5px; font-weight: 650; margin-bottom: 10px; display: flex; justify-content: space-between; }
+    .wf-column h3 span { color: var(--text-muted); font-weight: 500; }
+    .wf-row {
+      background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+      padding: 9px 10px; margin-bottom: 8px; font-size: 13px;
+    }
+    .wf-row .wf-subject { font-weight: 550; margin-bottom: 6px; cursor: pointer; }
+    .wf-row .wf-subject:hover { color: var(--accent); }
+    .wf-row select { font-family: inherit; font-size: 12px; width: 100%; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); }
+
+    /* ── Modal ── */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(8,11,15,.5);
+      display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px;
+    }
+    .modal {
+      background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-lg);
+      width: min(440px, 100%); padding: 22px; display: flex; flex-direction: column; gap: 12px;
+    }
+    .modal h2 { font-size: 17px; font-weight: 640; }
+    .modal input[type="text"] {
+      font-family: inherit; font-size: 14px; padding: 9px 12px;
+      border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); color: var(--text);
+    }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+    #upload-status { font-size: 13px; color: var(--text-muted); min-height: 18px; }
+    #upload-status.error { color: #d64545; }
+
+    /* ── Detail metadata editors ── */
+    .detail-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .detail-meta select, .detail-meta input[type="text"] {
+      font-family: inherit; font-size: 12.5px; padding: 5px 9px;
+      border: 1px solid var(--border-strong); border-radius: 999px; background: var(--surface); color: var(--text);
+    }
+    .tag-chip { display: inline-flex; align-items: center; gap: 4px; }
+    .tag-chip button { border: none; background: none; padding: 0; font-size: 13px; color: var(--text-muted); cursor: pointer; line-height: 1; }
+    .tag-chip button:hover { color: #d64545; }
+    #tag-add-input { width: 84px; }
   </style>
 </head>
 <body class="view-list">
 
 <header>
-  <h1>myletterbox <span>/ documents</span></h1>
+  <h1>Life Cabinet</h1>
+  <nav id="tabs" role="tablist" aria-label="Sections">
+    <button class="tab-btn active" data-tab="home" role="tab" aria-selected="true">Home</button>
+    <button class="tab-btn" data-tab="cabinet" role="tab" aria-selected="false">Cabinet</button>
+    <button class="tab-btn" data-tab="workflow" role="tab" aria-selected="false">Workflow</button>
+  </nav>
   <div id="user-info">
     <span id="user-email"></span>
     <button class="icon" id="theme-btn" title="Toggle theme" aria-label="Toggle colour theme">◐</button>
@@ -440,78 +582,182 @@
   </div>
 </header>
 
-<!-- Login -->
+<!-- Landing page -->
 <div id="login-screen">
-  <h2>myletterbox</h2>
-  <p>Sign in with the Google account you use to send letters to your AgentMail inbox.</p>
-  <button class="primary" id="sign-in-btn">Sign in with Google</button>
+  <div class="hero">
+    <span class="hero-badge">AI-powered · Personal document vault</span>
+    <h2>Every important document in your life, <span>organized automatically.</span></h2>
+    <p class="lede">
+      Life Cabinet reads, classifies, and files your letters, bills, and contracts
+      the moment they arrive — organized around the people, property, and
+      accounts they actually belong to, not folders.
+    </p>
+    <div class="hero-actions">
+      <button class="primary" id="sign-in-btn">Sign in with Google</button>
+      <p>Sign in with the Google account you use to send letters to your AgentMail inbox.</p>
+    </div>
+  </div>
+
+  <div class="landing-section">
+    <h3>Why Life Cabinet</h3>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🗂️</div>
+        <h4>Organized by life, not folders</h4>
+        <p>Documents attach to real things — your car, your apartment, your insurance policy — so everything about them lives in one place.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">✨</div>
+        <h4>AI reads and files for you</h4>
+        <p>Every document is automatically classified, tagged, and summarized — no manual sorting required.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⏰</div>
+        <h4>Never miss a deadline</h4>
+        <p>Renewals, expirations, and bills due are surfaced on your dashboard before they become a problem.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔎</div>
+        <h4>Find anything in seconds</h4>
+        <p>Search by keyword, category, asset, or date — and jump straight to the document you need.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="landing-section">
+    <h3>How it works</h3>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h4>Send or upload</h4>
+        <p>Forward a letter to your inbox, or upload a photo or PDF directly.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h4>AI classifies it</h4>
+        <p>Life Cabinet reads the document, extracts key details, and files it under the right category and asset.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h4>Find it anytime</h4>
+        <p>Browse your Cabinet, track it through your Workflow, or search for it later — it's always there.</p>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Main -->
 <div id="main">
-  <div id="stats">
-    <div class="stat-card">
-      <div class="value" id="stat-total">—</div>
-      <div class="label">Documents processed</div>
-    </div>
-    <div class="stat-card">
-      <div class="value" id="stat-attachments">—</div>
-      <div class="label">Total attachments</div>
-    </div>
-    <div class="stat-card">
-      <div class="value" id="stat-latest">—</div>
-      <div class="label">Latest document</div>
-    </div>
+
+  <div id="home-view">
+    <section class="dash-section">
+      <h2 class="dash-title">Needs Attention</h2>
+      <div id="dash-attention" class="dash-list"></div>
+    </section>
+    <section class="dash-section">
+      <h2 class="dash-title">Upcoming</h2>
+      <div id="dash-upcoming" class="dash-list"></div>
+    </section>
+    <section class="dash-section">
+      <h2 class="dash-title">Recent Documents</h2>
+      <div id="dash-recent" class="dash-list"></div>
+    </section>
   </div>
 
-  <div id="toolbar">
-    <div class="search-wrap">
-      <span class="search-icon">⌕</span>
-      <input id="search" type="text" placeholder="Search subjects and summaries…" autocomplete="off" spellcheck="false" />
-      <button id="search-clear" aria-label="Clear search">×</button>
-    </div>
-    <div class="seg" role="group" aria-label="View mode">
-      <button id="view-list-btn" class="active">Cards</button>
-      <button id="view-table-btn">Table</button>
-    </div>
-    <button class="icon" id="refresh-btn" title="Refresh" aria-label="Refresh">↻</button>
+  <div id="workflow-view">
+    <div id="workflow-board"></div>
   </div>
 
-  <div id="result-count"></div>
-
-  <div id="panes">
-    <div id="list-pane">
-      <div id="doc-list"></div>
-    </div>
-
-    <div class="table-wrap" id="table-wrap">
-      <div class="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Subject</th>
-              <th style="text-align:center">Att.</th>
-              <th>Summary</th>
-              <th>PDF</th>
-            </tr>
-          </thead>
-          <tbody id="doc-table-body"></tbody>
-        </table>
+  <div id="cabinet-view">
+    <div id="stats">
+      <div class="stat-card">
+        <div class="value" id="stat-total">—</div>
+        <div class="label">Documents processed</div>
+      </div>
+      <div class="stat-card">
+        <div class="value" id="stat-attachments">—</div>
+        <div class="label">Total attachments</div>
+      </div>
+      <div class="stat-card">
+        <div class="value" id="stat-latest">—</div>
+        <div class="label">Latest document</div>
       </div>
     </div>
 
-    <div id="detail" aria-live="polite">
-      <div id="detail-inner"></div>
+    <div id="category-bar" class="chip-bar"></div>
+    <div id="asset-bar" class="chip-bar"></div>
+
+    <div id="toolbar">
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input id="search" type="text" placeholder="Search subjects and summaries…" autocomplete="off" spellcheck="false" />
+        <button id="search-clear" aria-label="Clear search">×</button>
+      </div>
+      <select id="status-filter" class="filter-select" aria-label="Filter by workflow status">
+        <option value="">All statuses</option>
+        <option value="Inbox">Inbox</option>
+        <option value="Needs Action">Needs Action</option>
+        <option value="Waiting">Waiting</option>
+        <option value="Completed">Completed</option>
+      </select>
+      <div class="seg" role="group" aria-label="View mode">
+        <button id="view-list-btn" class="active">Cards</button>
+        <button id="view-table-btn">Table</button>
+      </div>
+      <button class="icon" id="upload-btn" title="Upload document" aria-label="Upload document">+</button>
+      <button class="icon" id="refresh-btn" title="Refresh" aria-label="Refresh">↻</button>
+    </div>
+
+    <div id="result-count"></div>
+
+    <div id="panes">
+      <div id="list-pane">
+        <div id="doc-list"></div>
+      </div>
+
+      <div class="table-wrap" id="table-wrap">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Subject</th>
+                <th style="text-align:center">Att.</th>
+                <th>Summary</th>
+                <th>PDF</th>
+              </tr>
+            </thead>
+            <tbody id="doc-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="detail" aria-live="polite">
+        <div id="detail-inner"></div>
+      </div>
+    </div>
+
+    <div id="kbd-hint">
+      <kbd>j</kbd> <kbd>k</kbd> navigate · <kbd>Enter</kbd> open · <kbd>/</kbd> search · <kbd>Esc</kbd> close
     </div>
   </div>
 
-  <div id="kbd-hint">
-    <kbd>j</kbd> <kbd>k</kbd> navigate · <kbd>Enter</kbd> open · <kbd>/</kbd> search · <kbd>Esc</kbd> close
-  </div>
 </div>
 
 <div id="backdrop"></div>
+
+<div id="upload-modal" class="modal-backdrop" style="display:none">
+  <div class="modal">
+    <h2>Upload document</h2>
+    <input type="text" id="upload-title" placeholder="Title (optional)" />
+    <input type="file" id="upload-files" multiple accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.pdf,application/pdf" />
+    <div id="upload-status"></div>
+    <div class="modal-actions">
+      <button id="upload-cancel-btn">Cancel</button>
+      <button class="primary" id="upload-submit-btn">Upload</button>
+    </div>
+  </div>
+</div>
 
 <!-- Firebase SDK -->
 <script type="module">
@@ -536,8 +782,18 @@ const provider = new GoogleAuthProvider();
 
 const $ = id => document.getElementById(id);
 
+const API_BASE = "https://myletterbox-757041740498.us-central1.run.app";
+
+const CATEGORIES = [
+  "Identity & Legal", "Finance", "Property", "Vehicles", "Insurance", "Health",
+  "Family", "Career & Business", "Education", "Travel", "Purchases & Warranties",
+  "Reference", "Archive",
+];
+const WORKFLOW_STATUSES = ["Inbox", "Needs Action", "Waiting", "Completed"];
+
 // ── App state ────────────────────────────────────────────────
 let allDocs   = [];                 // newest first
+let allAssets = [];
 let viewMode  = localStorage.getItem("mlb-view") === "table" ? "table" : "list";
 let selectedId = null;
 let cursorId   = null;              // keyboard cursor
@@ -546,6 +802,35 @@ let loadState  = "loading";         // loading | ready | error
 let loadError  = "";
 const expandedThreads = new Set();
 let navIds = [];                    // doc ids in visual order, for j/k
+let activeTab = "home";             // home | cabinet | workflow
+let activeCategory = null;
+let activeAsset = null;
+let statusFilter = "";
+
+// ── Backend API (manual upload + metadata edits) ───────────────
+async function api(path, options = {}) {
+  const token = await auth.currentUser.getIdToken();
+  const res = await fetch(API_BASE + path, {
+    ...options,
+    headers: { ...(options.headers || {}), Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail || res.statusText);
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+async function patchDocument(id, updates) {
+  await api(`/documents/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  });
+  const doc = allDocs.find(d => d.id === id);
+  if (doc) Object.assign(doc, updates);
+  render();
+}
 
 // ── Theme ────────────────────────────────────────────────────
 const storedTheme = localStorage.getItem("mlb-theme");
@@ -787,15 +1072,19 @@ async function loadDocuments(email) {
   render();
 
   try {
-    const snap = await getDocs(query(
-      collection(db, "users", email, "documents"),
-      orderBy("timestamp", "desc")
-    ));
-    allDocs = snap.docs.map(d => {
+    const [docsSnap, assetsSnap] = await Promise.all([
+      getDocs(query(
+        collection(db, "users", email, "documents"),
+        orderBy("timestamp", "desc")
+      )),
+      getDocs(collection(db, "users", email, "assets")),
+    ]);
+    allDocs = docsSnap.docs.map(d => {
       const data = d.data();
       const plain = stripMarkdown(data.summary);
       return { id: d.id, ...data, _plain: plain, _preview: previewText(data.summary) || plain };
     });
+    allAssets = assetsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     loadState = "ready";
     updateStats(allDocs);
     render();
@@ -809,11 +1098,16 @@ async function loadDocuments(email) {
 
 // ── Grouping ─────────────────────────────────────────────────
 function getFiltered() {
-  if (!searchQ) return allDocs;
-  return allDocs.filter(d =>
-    (d.subject || "").toLowerCase().includes(searchQ) ||
-    (d._plain || "").toLowerCase().includes(searchQ)
-  );
+  return allDocs.filter(d => {
+    if (activeCategory && (d.category || "Uncategorized") !== activeCategory) return false;
+    if (activeAsset && d.asset_id !== activeAsset) return false;
+    if (statusFilter && (d.workflow_status || "Inbox") !== statusFilter) return false;
+    if (searchQ && !(
+      (d.subject || "").toLowerCase().includes(searchQ) ||
+      (d._plain || "").toLowerCase().includes(searchQ)
+    )) return false;
+    return true;
+  });
 }
 
 /** Collapse consecutive documents sharing a thread_id into one group. */
@@ -838,17 +1132,31 @@ function threadSiblings(doc) {
 function render() {
   document.body.classList.toggle("view-list", viewMode === "list");
   document.body.classList.toggle("view-table", viewMode === "table");
+  document.body.classList.toggle("tab-home", activeTab === "home");
+  document.body.classList.toggle("tab-cabinet", activeTab === "cabinet");
+  document.body.classList.toggle("tab-workflow", activeTab === "workflow");
+  $$(".tab-btn").forEach(b => {
+    const active = b.dataset.tab === activeTab;
+    b.classList.toggle("active", active);
+    b.setAttribute("aria-selected", active);
+  });
   $("view-list-btn").classList.toggle("active", viewMode === "list");
   $("view-table-btn").classList.toggle("active", viewMode === "table");
 
   const docs = getFiltered();
   navIds = [];
 
+  renderCategoryBar();
+  renderAssetBar();
   renderList(docs);
   renderTable(docs);
   renderDetail();
   renderCount(docs);
+  renderHome();
+  renderWorkflow();
 }
+
+const $$ = sel => Array.from(document.querySelectorAll(sel));
 
 function renderCount(docs) {
   const el = $("result-count");
@@ -995,6 +1303,24 @@ function renderDetail() {
                ↓ <span>${esc(doc.pdf_filename || "document.pdf")}</span></a>`
           : ""}
       </div>
+      <div class="detail-meta">
+        <select data-field="workflow_status" aria-label="Workflow status">
+          ${WORKFLOW_STATUSES.map(s => `<option value="${esc(s)}"${(doc.workflow_status || "Inbox") === s ? " selected" : ""}>${esc(s)}</option>`).join("")}
+        </select>
+        <select data-field="category" aria-label="Category">
+          <option value=""${!doc.category ? " selected" : ""}>Uncategorized</option>
+          ${CATEGORIES.map(c => `<option value="${esc(c)}"${doc.category === c ? " selected" : ""}>${esc(c)}</option>`).join("")}
+        </select>
+        <input type="text" id="asset-input" list="asset-datalist" placeholder="Asset"
+               value="${esc(doc.asset_name || "")}" aria-label="Asset" />
+        <datalist id="asset-datalist">
+          ${allAssets.map(a => `<option value="${esc(a.name)}"></option>`).join("")}
+        </datalist>
+        ${(doc.tags || []).map(t => `
+          <span class="chip tag-chip">${esc(t)}<button data-remove-tag="${esc(t)}" aria-label="Remove tag">×</button></span>
+        `).join("")}
+        <input type="text" id="tag-add-input" placeholder="+ tag" aria-label="Add tag" />
+      </div>
     </div>
     <div class="detail-body">
       ${doc.summary
@@ -1019,6 +1345,168 @@ function updateStats(docs) {
   $("stat-attachments").textContent = docs.reduce((s, d) => s + (d.attachment_count ?? 0), 0);
   $("stat-latest").textContent = docs.length ? statDate(docDate(docs[0])) : "—";
 }
+
+// ── Category / asset chip filters ───────────────────────────────
+function chipBtn(label, active, dataset) {
+  const attrs = Object.entries(dataset).map(([k, v]) => `data-${k}="${esc(v)}"`).join(" ");
+  return `<button class="chip-btn${active ? " active" : ""}" ${attrs}>${esc(label)}</button>`;
+}
+
+function renderCategoryBar() {
+  const counts = {};
+  for (const d of allDocs) {
+    const c = d.category || "Uncategorized";
+    counts[c] = (counts[c] || 0) + 1;
+  }
+  const cats = CATEGORIES.filter(c => counts[c]);
+  if (counts["Uncategorized"]) cats.push("Uncategorized");
+
+  const html = [chipBtn(`All (${allDocs.length})`, !activeCategory, { cat: "" })];
+  for (const c of cats) html.push(chipBtn(`${c} (${counts[c]})`, activeCategory === c, { cat: c }));
+  $("category-bar").innerHTML = allDocs.length ? html.join("") : "";
+}
+
+function renderAssetBar() {
+  const bar = $("asset-bar");
+  if (!activeCategory) { bar.innerHTML = ""; return; }
+
+  const inCategory = allDocs.filter(d => (d.category || "Uncategorized") === activeCategory);
+  const counts = {};
+  for (const d of inCategory) {
+    if (!d.asset_id) continue;
+    counts[d.asset_id] = (counts[d.asset_id] || 0) + 1;
+  }
+  const assetIds = Object.keys(counts);
+  if (!assetIds.length) { bar.innerHTML = ""; return; }
+
+  const html = [chipBtn(`All assets`, !activeAsset, { asset: "" })];
+  for (const id of assetIds) {
+    const name = allAssets.find(a => a.id === id)?.name || "Unnamed asset";
+    html.push(chipBtn(`${name} (${counts[id]})`, activeAsset === id, { asset: id }));
+  }
+  bar.innerHTML = html.join("");
+}
+
+$("category-bar").addEventListener("click", e => {
+  const btn = e.target.closest(".chip-btn");
+  if (!btn) return;
+  activeCategory = btn.dataset.cat || null;
+  activeAsset = null;
+  render();
+});
+
+$("asset-bar").addEventListener("click", e => {
+  const btn = e.target.closest(".chip-btn");
+  if (!btn) return;
+  activeAsset = btn.dataset.asset || null;
+  render();
+});
+
+$("status-filter").onchange = e => { statusFilter = e.target.value; render(); };
+
+// ── Home dashboard ───────────────────────────────────────────
+function parseISODate(s) {
+  if (!s) return null;
+  const d = new Date(s + "T00:00:00");
+  return isNaN(d) ? null : d;
+}
+
+function dashRow(doc, metaLabel) {
+  return `<div class="doc-card" data-id="${esc(doc.id)}" tabindex="0" role="button">
+    <div class="card-top">
+      <h3 class="card-subject">${esc(doc.subject || "Untitled document")}</h3>
+      <time class="card-date">${esc(shortDate(docDate(doc)))}</time>
+    </div>
+    <p class="card-preview">${esc(doc._preview || "")}</p>
+    <div class="card-meta">
+      ${doc.category ? `<span class="chip">${esc(doc.category)}</span>` : ""}
+      ${metaLabel ? `<span class="chip">${esc(metaLabel)}</span>` : ""}
+    </div>
+  </div>`;
+}
+
+function renderHome() {
+  if (activeTab !== "home") return;
+
+  if (loadState !== "ready") {
+    $("dash-attention").innerHTML = skeletonCards(3);
+    $("dash-upcoming").innerHTML = skeletonCards(3);
+    $("dash-recent").innerHTML = skeletonCards(3);
+    return;
+  }
+
+  const now = new Date();
+  const in30 = new Date(now.getTime() + 30 * 86400000);
+
+  const attention = allDocs.filter(d => {
+    if ((d.workflow_status || "Inbox") === "Completed") return false;
+    if (d.workflow_status === "Needs Action") return true;
+    const exp = parseISODate(d.expiry_date);
+    return exp && exp <= in30;
+  });
+  $("dash-attention").innerHTML = attention.length
+    ? attention.slice(0, 10).map(d => dashRow(d, d.expiry_date ? `Expires ${d.expiry_date}` : d.workflow_status)).join("")
+    : `<div class="dash-empty">Nothing needs attention right now.</div>`;
+
+  const upcoming = allDocs
+    .filter(d => { const exp = parseISODate(d.expiry_date); return exp && exp > now; })
+    .sort((a, b) => parseISODate(a.expiry_date) - parseISODate(b.expiry_date));
+  $("dash-upcoming").innerHTML = upcoming.length
+    ? upcoming.slice(0, 10).map(d => dashRow(d, `Due ${d.expiry_date}`)).join("")
+    : `<div class="dash-empty">No upcoming dates.</div>`;
+
+  $("dash-recent").innerHTML = allDocs.length
+    ? allDocs.slice(0, 8).map(d => dashRow(d, "")).join("")
+    : `<div class="dash-empty">No documents yet.</div>`;
+}
+
+$("home-view").addEventListener("click", e => {
+  const card = e.target.closest(".doc-card");
+  if (!card) return;
+  activeTab = "cabinet";
+  activeCategory = activeAsset = null;
+  select(card.dataset.id);
+});
+
+// ── Workflow board ───────────────────────────────────────────
+function renderWorkflow() {
+  if (activeTab !== "workflow") return;
+
+  const columns = WORKFLOW_STATUSES.map(status => {
+    const docs = allDocs.filter(d => (d.workflow_status || "Inbox") === status);
+    const rows = docs.length
+      ? docs.map(d => `
+        <div class="wf-row" data-id="${esc(d.id)}">
+          <div class="wf-subject">${esc(d.subject || "Untitled document")}</div>
+          <select data-id="${esc(d.id)}">
+            ${WORKFLOW_STATUSES.map(s => `<option value="${esc(s)}"${s === status ? " selected" : ""}>${esc(s)}</option>`).join("")}
+          </select>
+        </div>`).join("")
+      : `<div class="dash-empty">Empty</div>`;
+    return `<div class="wf-column">
+      <h3>${esc(status)} <span>${docs.length}</span></h3>
+      ${rows}
+    </div>`;
+  });
+
+  $("workflow-board").innerHTML = columns.join("");
+}
+
+$("workflow-board").addEventListener("click", e => {
+  const subject = e.target.closest(".wf-subject");
+  if (subject) {
+    const id = subject.closest(".wf-row").dataset.id;
+    activeTab = "cabinet";
+    activeCategory = activeAsset = null;
+    select(id);
+  }
+});
+
+$("workflow-board").addEventListener("change", e => {
+  if (e.target.tagName !== "SELECT") return;
+  patchDocument(e.target.dataset.id, { workflow_status: e.target.value })
+    .catch(err => alert(`Failed to update status: ${err.message}`));
+});
 
 // ── Selection & routing ──────────────────────────────────────
 function select(id, { push = true } = {}) {
@@ -1083,7 +1571,43 @@ $("doc-table-body").addEventListener("click", e => {
 $("detail-inner").addEventListener("click", e => {
   if (e.target.closest(".detail-close")) return closeDetail();
   const item = e.target.closest(".thread-item");
-  if (item) select(item.dataset.id);
+  if (item) return select(item.dataset.id);
+
+  const removeTag = e.target.closest("[data-remove-tag]");
+  if (removeTag && selectedId) {
+    const doc = allDocs.find(d => d.id === selectedId);
+    const tags = (doc.tags || []).filter(t => t !== removeTag.dataset.removeTag);
+    patchDocument(selectedId, { tags }).catch(err => alert(`Failed to update tags: ${err.message}`));
+  }
+});
+
+$("detail-inner").addEventListener("change", e => {
+  const field = e.target.dataset.field;
+  if (field && selectedId) {
+    patchDocument(selectedId, { [field]: e.target.value })
+      .catch(err => alert(`Failed to update ${field}: ${err.message}`));
+  }
+});
+
+$("detail-inner").addEventListener("focusout", e => {
+  if (e.target.id === "asset-input" && selectedId) {
+    const doc = allDocs.find(d => d.id === selectedId);
+    const value = e.target.value.trim();
+    if (value !== (doc.asset_name || "")) {
+      patchDocument(selectedId, { asset_name: value })
+        .catch(err => alert(`Failed to update asset: ${err.message}`));
+    }
+  }
+});
+
+$("detail-inner").addEventListener("keydown", e => {
+  if (e.target.id !== "tag-add-input" || e.key !== "Enter") return;
+  e.preventDefault();
+  const value = e.target.value.trim();
+  if (!value || !selectedId) return;
+  const doc = allDocs.find(d => d.id === selectedId);
+  const tags = Array.from(new Set([...(doc.tags || []), value]));
+  patchDocument(selectedId, { tags }).catch(err => alert(`Failed to add tag: ${err.message}`));
 });
 
 $("backdrop").onclick = closeDetail;
@@ -1107,6 +1631,67 @@ $("search-clear").onclick = () => {
 
 $("refresh-btn").onclick = () => {
   if (auth.currentUser) loadDocuments(auth.currentUser.email);
+};
+
+// ── Tabs ─────────────────────────────────────────────────────
+$("tabs").addEventListener("click", e => {
+  const btn = e.target.closest(".tab-btn");
+  if (!btn) return;
+  activeTab = btn.dataset.tab;
+  render();
+});
+
+// ── Upload modal ─────────────────────────────────────────────
+function openUploadModal() {
+  $("upload-title").value = "";
+  $("upload-files").value = "";
+  $("upload-status").textContent = "";
+  $("upload-status").classList.remove("error");
+  $("upload-modal").style.display = "flex";
+}
+function closeUploadModal() { $("upload-modal").style.display = "none"; }
+
+$("upload-btn").onclick = openUploadModal;
+$("upload-cancel-btn").onclick = closeUploadModal;
+$("upload-modal").addEventListener("click", e => { if (e.target === $("upload-modal")) closeUploadModal(); });
+
+$("upload-submit-btn").onclick = async () => {
+  const files = $("upload-files").files;
+  if (!files.length) {
+    $("upload-status").textContent = "Choose at least one file.";
+    $("upload-status").classList.add("error");
+    return;
+  }
+
+  const statusEl = $("upload-status");
+  statusEl.classList.remove("error");
+  statusEl.textContent = "Uploading and classifying…";
+  $("upload-submit-btn").disabled = true;
+
+  try {
+    const form = new FormData();
+    for (const f of files) form.append("files", f);
+    form.append("title", $("upload-title").value.trim());
+
+    const token = await auth.currentUser.getIdToken();
+    const res = await fetch(`${API_BASE}/documents`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.detail || res.statusText);
+    }
+
+    closeUploadModal();
+    await loadDocuments(auth.currentUser.email);
+  } catch (e) {
+    statusEl.textContent = `Upload failed: ${e.message}`;
+    statusEl.classList.add("error");
+  } finally {
+    $("upload-submit-btn").disabled = false;
+  }
 };
 
 // ── Keyboard navigation ──────────────────────────────────────

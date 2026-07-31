@@ -3,24 +3,57 @@ import logging
 import os
 import re
 import tempfile
+import uuid
 from pathlib import Path
 
+import firebase_admin
 import httpx
 import markdown as md
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from firebase_admin import auth as firebase_auth
 
 load_dotenv()
 
-from storage import save_document  # noqa: E402
+from storage import get_asset_names, save_document, update_document_fields  # noqa: E402
 from summarize_images import ACCEPTED_IMAGE_TYPES, analyze_email, combine_attachments_to_pdf, summarize_german_document  # noqa: E402
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("myletterbox")
 
+firebase_admin.initialize_app()
+
 app = FastAPI(title="myletterbox")
 AGENTMAIL_BASE = "https://api.agentmail.to/v0"
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://project-f33cb18b-d366-43b3-9ee.web.app",
+        "https://project-f33cb18b-d366-43b3-9ee.firebaseapp.com",
+        "http://localhost:5000",
+    ],
+    allow_methods=["GET", "POST", "PATCH"],
+    allow_headers=["Authorization", "Content-Type"],
+)
+
+
+async def _verify_user(request: Request) -> str:
+    """Verify the Firebase ID token in the Authorization header, return the sender's bare lowercased email."""
+    header = request.headers.get("authorization", "")
+    if not header.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Missing bearer token")
+    token = header[7:]
+    try:
+        decoded = firebase_auth.verify_id_token(token)
+    except Exception as exc:
+        raise HTTPException(status_code=401, detail="Invalid or expired token") from exc
+    email = decoded.get("email")
+    if not email:
+        raise HTTPException(status_code=401, detail="Token has no email claim")
+    return email.strip().lower()
 
 
 # ---------------------------------------------------------------------------
@@ -258,12 +291,15 @@ async def agentmail_webhook(request: Request):
         except Exception:
             logger.exception("Failed to download attachment %s (id=%s)", att.get("filename"), att_id)
 
+    existing_assets = await get_asset_names(sender)
+
     result = analyze_email(
         subject=subject,
         sender=sender,
         body=body,
         attachments=attachments,
         thread_history=thread_history,
+        existing_assets=existing_assets,
     )
     generated_subject = result["subject"]
     summary = result["summary"]
@@ -294,8 +330,103 @@ async def agentmail_webhook(request: Request):
             pdf_bytes=combined_pdf,
             pdf_filename=f"{re.sub(r'[^\w\s-]', '', generated_subject).strip().replace(' ', '_') or 'document'}.pdf",
             attachment_count=len(attachments),
+            category=result.get("category"),
+            document_type=result.get("document_type"),
+            tags=result.get("tags"),
+            document_date=result.get("document_date"),
+            expiry_date=result.get("expiry_date"),
+            asset_name=result.get("asset_name"),
+            owner=result.get("owner"),
+            source="email",
         )
     except Exception:
         logger.exception("Failed to save document to Firestore/GCS")
 
     return {"status": "ok", "subject": generated_subject, "summary": summary}
+
+
+# ---------------------------------------------------------------------------
+# Manual upload + metadata editing (web UI)
+# ---------------------------------------------------------------------------
+
+@app.post("/documents")
+async def upload_document(
+    request: Request,
+    files: list[UploadFile] = File(...),
+    title: str = Form(""),
+):
+    """Manual upload path — classifies and saves attachments the same way the webhook does."""
+    sender = await _verify_user(request)
+
+    if not files:
+        raise HTTPException(status_code=400, detail="At least one file is required.")
+
+    supported_types = ACCEPTED_IMAGE_TYPES | {"application/pdf"}
+    attachments: list[dict] = []
+    original_filenames: list[str] = []
+    for f in files:
+        if f.content_type not in supported_types:
+            raise HTTPException(
+                status_code=415,
+                detail=f"Unsupported file type '{f.content_type}'. Allowed: {sorted(supported_types)}",
+            )
+        data = await f.read()
+        attachments.append({"data": data, "media_type": f.content_type, "filename": f.filename or ""})
+        original_filenames.append(f.filename or "")
+
+    existing_assets = await get_asset_names(sender)
+
+    result = analyze_email(
+        subject=title,
+        sender=sender,
+        body="",
+        attachments=attachments,
+        thread_history=[],
+        existing_assets=existing_assets,
+    )
+    generated_subject = result["subject"]
+    summary = result["summary"]
+
+    combined_pdf: bytes | None = None
+    try:
+        combined_pdf = combine_attachments_to_pdf(attachments)
+    except Exception:
+        logger.exception("Failed to combine uploaded attachments into PDF")
+
+    event_id = str(uuid.uuid4())
+    pdf_filename = f"{re.sub(r'[^\w\s-]', '', generated_subject).strip().replace(' ', '_') or 'document'}.pdf"
+
+    await save_document(
+        sender_email=sender,
+        event_id=event_id,
+        thread_id="",
+        inbox_id="",
+        subject=generated_subject,
+        summary=summary,
+        pdf_bytes=combined_pdf,
+        pdf_filename=pdf_filename,
+        attachment_count=len(attachments),
+        category=result.get("category"),
+        document_type=result.get("document_type"),
+        tags=result.get("tags"),
+        document_date=result.get("document_date"),
+        expiry_date=result.get("expiry_date"),
+        asset_name=result.get("asset_name"),
+        owner=result.get("owner"),
+        source="upload",
+        original_filename=", ".join(original_filenames),
+    )
+
+    return {"status": "ok", "id": event_id, "subject": generated_subject, "summary": summary}
+
+
+@app.patch("/documents/{doc_id}")
+async def patch_document(doc_id: str, request: Request):
+    """Edit a document's editable metadata (workflow_status, category, asset_name, tags, subject, summary)."""
+    sender = await _verify_user(request)
+    updates = await request.json()
+    if not isinstance(updates, dict):
+        raise HTTPException(status_code=400, detail="Body must be a JSON object.")
+
+    await update_document_fields(sender, doc_id, updates)
+    return {"status": "ok"}
