@@ -1788,10 +1788,15 @@ function buildGraphSimulation(nodes, links) {
     .text(d => truncateLabel(d.label));
 
   const simulation = d3.forceSimulation(nodes)
-    .force("link", d3.forceLink(links).id(d => d.id).distance(l => l.kind === "asset" ? 90 : 55).strength(0.6))
-    .force("charge", d3.forceManyBody().strength(-170))
-    .force("center", d3.forceCenter(width / 2, height / 2))
-    .force("collide", d3.forceCollide().radius(d => graphNodeRadius(d) + 16))
+    .force("link", d3.forceLink(links).id(d => d.id).distance(l => l.kind === "asset" ? 60 : 34).strength(0.9))
+    .force("charge", d3.forceManyBody().strength(-70))
+    // forceCenter only re-centers the simulation's centroid once — it doesn't pull
+    // individual nodes together, so disconnected clusters drift apart under charge
+    // repulsion with nothing to pull them back. forceX/forceY apply real per-node
+    // gravity toward the middle, which keeps unconnected clusters compact.
+    .force("x", d3.forceX(width / 2).strength(0.08))
+    .force("y", d3.forceY(height / 2).strength(0.08))
+    .force("collide", d3.forceCollide().radius(d => graphNodeRadius(d) + 9))
     .on("tick", () => {
       linkSel
         .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
