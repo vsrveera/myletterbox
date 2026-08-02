@@ -21,6 +21,7 @@
       --accent-fg:   #ffffff;
       --accent-soft: #e8f0fe;
       --mark:        #fff3bf;
+      --graph-tag:   #d9480f;
       --shadow-sm:   0 1px 2px rgba(16,24,40,.05);
       --shadow-md:   0 4px 16px rgba(16,24,40,.10);
       --shadow-lg:   -8px 0 32px rgba(16,24,40,.18);
@@ -42,6 +43,7 @@
         --accent-fg:   #0e1116;
         --accent-soft: #17293f;
         --mark:        #4a3d0f;
+        --graph-tag:   #ffa94d;
         --shadow-sm:   0 1px 2px rgba(0,0,0,.4);
         --shadow-md:   0 4px 16px rgba(0,0,0,.45);
         --shadow-lg:   -8px 0 32px rgba(0,0,0,.55);
@@ -62,6 +64,7 @@
       --accent-fg:   #0e1116;
       --accent-soft: #17293f;
       --mark:        #4a3d0f;
+      --graph-tag:   #ffa94d;
       --shadow-sm:   0 1px 2px rgba(0,0,0,.4);
       --shadow-md:   0 4px 16px rgba(0,0,0,.45);
       --shadow-lg:   -8px 0 32px rgba(0,0,0,.55);
@@ -475,10 +478,11 @@
     .tab-btn:hover { background: var(--surface-2); }
     .tab-btn.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 
-    #home-view, #cabinet-view, #workflow-view { display: none; }
+    #home-view, #cabinet-view, #workflow-view, #graph-view { display: none; }
     body.tab-home #home-view { display: block; }
     body.tab-cabinet #cabinet-view { display: block; }
     body.tab-workflow #workflow-view { display: block; }
+    body.tab-graph #graph-view { display: block; }
 
     /* ── Chip filter bars ── */
     .chip-bar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
@@ -564,6 +568,55 @@
     .wf-row .wf-subject:hover { color: var(--accent); }
     .wf-row select { font-family: inherit; font-size: 12px; width: 100%; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); }
 
+    /* ── Graph view ── */
+    #graph-toolbar { display: flex; gap: 14px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+    #graph-toolbar .search-wrap { flex: 1; min-width: 200px; max-width: 360px; }
+    .graph-legend { display: flex; gap: 14px; font-size: 12.5px; color: var(--text-muted); }
+    .legend-item { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .legend-dot.legend-doc   { background: var(--text-muted); }
+    .legend-dot.legend-asset { background: var(--accent); }
+    .legend-dot.legend-tag   { background: var(--graph-tag); }
+    #graph-counts { font-size: 12.5px; color: var(--text-muted); margin-left: auto; white-space: nowrap; }
+
+    #graph-focus-bar { margin-bottom: 10px; min-height: 0; }
+    .graph-focus-chip {
+      font-family: inherit; font-size: 12.5px; color: var(--accent);
+      background: var(--accent-soft); border: 1px solid var(--accent);
+      border-radius: 999px; padding: 5px 8px 5px 12px; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 8px; font-weight: 600;
+    }
+    .graph-focus-chip .x { opacity: .75; font-weight: 400; }
+    .graph-focus-chip:hover .x { opacity: 1; }
+
+    #graph-canvas {
+      position: relative; height: 65vh; min-height: 420px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden;
+    }
+    #graph-svg { width: 100%; height: 100%; display: block; cursor: grab; }
+    #graph-svg:active { cursor: grabbing; }
+    .graph-node { cursor: pointer; }
+    .graph-node circle { stroke: var(--surface); stroke-width: 1.5px; }
+    .graph-node.is-focused circle { stroke: var(--accent); stroke-width: 3px; }
+    .graph-label {
+      font-size: 9.5px; fill: var(--text-muted); pointer-events: none;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .graph-link { stroke: var(--border-strong); stroke-opacity: .65; }
+    .graph-link-tag { stroke-dasharray: 2,2; }
+
+    #graph-empty { display: none; position: absolute; inset: 0; align-items: center; justify-content: center; }
+    #graph-empty.show { display: flex; }
+
+    #graph-hint { margin-top: 10px; font-size: 12px; color: var(--text-muted); text-align: center; }
+
+    @media (max-width: 900px) {
+      #graph-toolbar .search-wrap { max-width: none; }
+      #graph-counts { margin-left: 0; width: 100%; }
+      #graph-canvas { height: 60vh; }
+    }
+
     /* ── Modal ── */
     .modal-backdrop {
       position: fixed; inset: 0; background: rgba(8,11,15,.5);
@@ -612,6 +665,7 @@
     <button class="tab-btn" data-tab="home" role="tab" aria-selected="false">Home</button>
     <button class="tab-btn active" data-tab="cabinet" role="tab" aria-selected="true">Cabinet</button>
     <button class="tab-btn" data-tab="workflow" role="tab" aria-selected="false">Workflow</button>
+    <button class="tab-btn" data-tab="graph" role="tab" aria-selected="false">Graph</button>
   </nav>
   <div id="user-info">
     <span id="user-email"></span>
@@ -704,6 +758,27 @@
 
   <div id="workflow-view">
     <div id="workflow-board"></div>
+  </div>
+
+  <div id="graph-view">
+    <div id="graph-toolbar">
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input id="graph-search" type="text" placeholder="Filter graph by document, asset, or tag…" autocomplete="off" spellcheck="false" />
+      </div>
+      <div class="graph-legend">
+        <span class="legend-item"><span class="legend-dot legend-doc"></span>Document</span>
+        <span class="legend-item"><span class="legend-dot legend-asset"></span>Asset</span>
+        <span class="legend-item"><span class="legend-dot legend-tag"></span>Tag</span>
+      </div>
+      <div id="graph-counts"></div>
+    </div>
+    <div id="graph-focus-bar"></div>
+    <div id="graph-canvas">
+      <svg id="graph-svg"></svg>
+      <div id="graph-empty"></div>
+    </div>
+    <div id="graph-hint">Drag nodes to reposition · Scroll to zoom · Click a document to open it · Click an asset or tag to focus the graph</div>
   </div>
 
   <div id="cabinet-view">
@@ -814,6 +889,7 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChang
   from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
 import { getFirestore, collection, getDocs, orderBy, query }
   from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 
 const app = initializeApp({
   apiKey:            "AIzaSyC4xOeKa2LqP4gMuVxN2RmOgjvZ7rIFZgE",
@@ -854,6 +930,14 @@ let activeTab = "cabinet";          // home | cabinet | workflow
 let activeCategory = null;
 let activeAsset = null;
 let statusFilter = "";
+
+// ── Graph view state ─────────────────────────────────────────
+let graphSearch = "";                     // lowercased filter text
+let graphFocus = null;                    // { type: 'asset'|'tag', key, label } or null
+let graphSimulation = null;               // current d3 force simulation
+let graphSig = null;                      // signature of last-built graph, to skip needless rebuilds
+const graphNodePositions = new Map();     // node id -> {x,y}, persisted across rebuilds
+let graphResizeTimer = null;
 
 // ── Backend API (manual upload + metadata edits) ───────────────
 async function api(path, options = {}) {
@@ -1183,6 +1267,7 @@ function render() {
   document.body.classList.toggle("tab-home", activeTab === "home");
   document.body.classList.toggle("tab-cabinet", activeTab === "cabinet");
   document.body.classList.toggle("tab-workflow", activeTab === "workflow");
+  document.body.classList.toggle("tab-graph", activeTab === "graph");
   $$(".tab-btn").forEach(b => {
     const active = b.dataset.tab === activeTab;
     b.classList.toggle("active", active);
@@ -1202,6 +1287,7 @@ function render() {
   renderCount(docs);
   renderHome();
   renderWorkflow();
+  renderGraph();
 }
 
 const $$ = sel => Array.from(document.querySelectorAll(sel));
@@ -1558,6 +1644,232 @@ $("workflow-board").addEventListener("change", e => {
   if (e.target.tagName !== "SELECT") return;
   patchDocument(e.target.dataset.id, { workflow_status: e.target.value })
     .catch(err => alert(`Failed to update status: ${err.message}`));
+});
+
+// ── Graph view (documents ↔ assets ↔ tags) ───────────────────
+function truncateLabel(s, max = 18) {
+  s = String(s || "");
+  return s.length > max ? s.slice(0, max - 1) + "…" : s;
+}
+
+function graphNodeColor(type) {
+  return type === "asset" ? "var(--accent)" : type === "tag" ? "var(--graph-tag)" : "var(--text-muted)";
+}
+
+function graphNodeRadius(n) {
+  if (n.type === "document") return 6;
+  return Math.min(24, 10 + Math.sqrt(n.count || 1) * 3);
+}
+
+/** Build the node/link set for the current search + focus state. */
+function buildGraphData() {
+  const q = graphSearch;
+  const assetName = id => allAssets.find(a => a.id === id)?.name || "Unnamed asset";
+
+  let docs = allDocs;
+  if (q) {
+    docs = docs.filter(d =>
+      (d.subject || "").toLowerCase().includes(q) ||
+      (d.asset_id && assetName(d.asset_id).toLowerCase().includes(q)) ||
+      (d.tags || []).some(t => t.toLowerCase().includes(q))
+    );
+  }
+  if (graphFocus) {
+    docs = docs.filter(d => graphFocus.type === "asset"
+      ? d.asset_id === graphFocus.key
+      : (d.tags || []).some(t => t.toLowerCase() === graphFocus.key));
+  }
+
+  const nodes = new Map();
+  const links = [];
+
+  for (const d of docs) {
+    const docNodeId = `d-${d.id}`;
+    nodes.set(docNodeId, { id: docNodeId, type: "document", refId: d.id, label: d.subject || "Untitled document" });
+
+    if (d.asset_id) {
+      const assetNodeId = `a-${d.asset_id}`;
+      if (!nodes.has(assetNodeId)) {
+        nodes.set(assetNodeId, { id: assetNodeId, type: "asset", refId: d.asset_id, label: assetName(d.asset_id), count: 0 });
+      }
+      nodes.get(assetNodeId).count++;
+      links.push({ source: docNodeId, target: assetNodeId, kind: "asset" });
+    }
+
+    for (const tag of d.tags || []) {
+      const key = tag.toLowerCase();
+      const tagNodeId = `t-${key}`;
+      if (!nodes.has(tagNodeId)) {
+        nodes.set(tagNodeId, { id: tagNodeId, type: "tag", refId: key, label: tag, count: 0 });
+      }
+      nodes.get(tagNodeId).count++;
+      links.push({ source: docNodeId, target: tagNodeId, kind: "tag" });
+    }
+  }
+
+  return { nodes: [...nodes.values()], links, docCount: docs.length };
+}
+
+function graphDragBehavior() {
+  return d3.drag()
+    .on("start", (event, d) => {
+      if (!event.active) graphSimulation.alphaTarget(0.25).restart();
+      d.fx = d.x; d.fy = d.y;
+    })
+    .on("drag", (event, d) => { d.fx = event.x; d.fy = event.y; })
+    .on("end", (event, d) => {
+      if (!event.active) graphSimulation.alphaTarget(0);
+      d.fx = null; d.fy = null;
+      graphNodePositions.set(d.id, { x: d.x, y: d.y });
+    });
+}
+
+function isGraphNodeFocused(d) {
+  return !!graphFocus && d.type === graphFocus.type && d.refId === graphFocus.key;
+}
+
+function graphNodeClicked(event, d) {
+  event.stopPropagation();
+  if (d.type === "document") {
+    activeTab = "cabinet";
+    activeCategory = activeAsset = null;
+    select(d.refId);
+    return;
+  }
+  graphFocus = isGraphNodeFocused(d) ? null : { type: d.type, key: d.refId, label: d.label };
+  render();
+}
+
+function buildGraphSimulation(nodes, links) {
+  graphSimulation?.stop();
+
+  const svg = d3.select("#graph-svg");
+  svg.selectAll("*").remove();
+
+  if (!nodes.length) {
+    graphSimulation = null;
+    return;
+  }
+
+  const container = $("graph-canvas");
+  const width = container.clientWidth || 800;
+  const height = container.clientHeight || 480;
+  svg.attr("viewBox", `0 0 ${width} ${height}`);
+
+  for (const n of nodes) {
+    const prev = graphNodePositions.get(n.id);
+    if (prev) { n.x = prev.x; n.y = prev.y; }
+    else { n.x = width / 2 + (Math.random() - 0.5) * 60; n.y = height / 2 + (Math.random() - 0.5) * 60; }
+  }
+
+  const zoomLayer = svg.append("g").attr("class", "zoom-layer");
+
+  const linkSel = zoomLayer.append("g").attr("class", "graph-links")
+    .selectAll("line").data(links).join("line")
+      .attr("class", d => `graph-link graph-link-${d.kind}`);
+
+  const nodeSel = zoomLayer.append("g").attr("class", "graph-nodes")
+    .selectAll("g").data(nodes, d => d.id).join("g")
+      .attr("class", d => `graph-node graph-node-${d.type}${isGraphNodeFocused(d) ? " is-focused" : ""}`)
+      .call(graphDragBehavior())
+      .on("click", graphNodeClicked);
+
+  nodeSel.append("circle")
+    .attr("r", graphNodeRadius)
+    .attr("fill", d => graphNodeColor(d.type));
+
+  nodeSel.append("title")
+    .text(d => d.type === "document" ? d.label : `${d.label} (${d.count} document${d.count === 1 ? "" : "s"})`);
+
+  nodeSel.append("text")
+    .attr("class", "graph-label")
+    .attr("dy", d => graphNodeRadius(d) + 11)
+    .attr("text-anchor", "middle")
+    .text(d => truncateLabel(d.label));
+
+  const simulation = d3.forceSimulation(nodes)
+    .force("link", d3.forceLink(links).id(d => d.id).distance(l => l.kind === "asset" ? 90 : 55).strength(0.6))
+    .force("charge", d3.forceManyBody().strength(-170))
+    .force("center", d3.forceCenter(width / 2, height / 2))
+    .force("collide", d3.forceCollide().radius(d => graphNodeRadius(d) + 16))
+    .on("tick", () => {
+      linkSel
+        .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+        .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+      nodeSel.attr("transform", d => `translate(${d.x},${d.y})`);
+    })
+    .on("end", () => {
+      for (const n of nodes) graphNodePositions.set(n.id, { x: n.x, y: n.y });
+    });
+
+  svg.call(d3.zoom().scaleExtent([0.3, 3]).on("zoom", event => {
+    zoomLayer.attr("transform", event.transform);
+  }));
+
+  graphSimulation = simulation;
+}
+
+function renderGraphChrome(docCount, nodes) {
+  const bar = $("graph-focus-bar");
+  bar.innerHTML = graphFocus
+    ? `<button class="graph-focus-chip" id="graph-focus-chip">Focused: ${esc(graphFocus.label)} <span class="x">×</span></button>`
+    : "";
+
+  const assetCount = nodes.filter(n => n.type === "asset").length;
+  const tagCount = nodes.filter(n => n.type === "tag").length;
+  $("graph-counts").textContent = docCount
+    ? `${docCount} document${docCount === 1 ? "" : "s"} · ${assetCount} asset${assetCount === 1 ? "" : "s"} · ${tagCount} tag${tagCount === 1 ? "" : "s"}`
+    : "";
+}
+
+function renderGraph() {
+  if (activeTab !== "graph") return;
+
+  if (loadState === "loading") {
+    $("graph-empty").innerHTML = "";
+    $("graph-empty").classList.remove("show");
+    return;
+  }
+
+  const { nodes, links, docCount } = buildGraphData();
+  renderGraphChrome(docCount, nodes);
+
+  const emptyEl = $("graph-empty");
+  if (!nodes.length) {
+    graphSimulation?.stop();
+    graphSimulation = null;
+    d3.select("#graph-svg").selectAll("*").remove();
+    emptyEl.innerHTML = loadState === "error"
+      ? stateBlock("⚠", "Could not load documents", esc(loadError), "error")
+      : graphSearch || graphFocus
+        ? stateBlock("⌕", "No matches", "Nothing in this filter has an asset or tag to graph.")
+        : stateBlock("🕸", "Nothing to graph yet", "Documents with an asset or a tag will appear here as a network.");
+    emptyEl.classList.add("show");
+    graphSig = null;
+    return;
+  }
+  emptyEl.classList.remove("show");
+  emptyEl.innerHTML = "";
+
+  const sig = JSON.stringify([nodes.map(n => n.id).sort(), links.map(l => `${l.source}|${l.target}`).sort()]);
+  if (sig === graphSig && graphSimulation) return;   // same graph already on screen — leave physics/positions alone
+  graphSig = sig;
+  buildGraphSimulation(nodes, links);
+}
+
+$("graph-search").oninput = e => {
+  graphSearch = e.target.value.trim().toLowerCase();
+  render();
+};
+
+$("graph-focus-bar").addEventListener("click", e => {
+  if (e.target.closest("#graph-focus-chip")) { graphFocus = null; render(); }
+});
+
+addEventListener("resize", () => {
+  if (activeTab !== "graph") return;
+  clearTimeout(graphResizeTimer);
+  graphResizeTimer = setTimeout(() => { graphSig = null; renderGraph(); }, 150);
 });
 
 // ── Selection & routing ──────────────────────────────────────
