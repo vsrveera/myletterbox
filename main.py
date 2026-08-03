@@ -47,6 +47,8 @@ app.add_middleware(
     allow_origins=[
         "https://project-f33cb18b-d366-43b3-9ee.web.app",
         "https://project-f33cb18b-d366-43b3-9ee.firebaseapp.com",
+        "https://orgme.guru",
+        "https://cabinet.orgme.guru",
         "http://localhost:5000",
         "http://localhost:5050",
     ],
