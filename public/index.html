@@ -635,6 +635,22 @@
     #upload-status { font-size: 13px; color: var(--text-muted); min-height: 18px; }
     #upload-status.error { color: #d64545; }
 
+    /* ── Billing ── */
+    #trial-banner {
+      display: none; align-items: center; justify-content: center; gap: 10px;
+      padding: 8px 16px; background: var(--accent-soft); color: var(--text);
+      font-size: 13px; text-align: center;
+    }
+    #trial-banner.show { display: flex; }
+    #trial-banner button {
+      font-size: 12.5px; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--accent);
+      background: var(--accent); color: #fff; cursor: pointer;
+    }
+    #paywall-modal .modal { text-align: center; align-items: center; }
+    #paywall-modal p { color: var(--text-muted); font-size: 14px; }
+    #billing-status-text { font-size: 13px; color: var(--text-muted); min-height: 18px; }
+    #manage-billing-btn { display: none; }
+
     .upload-mode { display: flex; flex-direction: column; gap: 8px; }
     .upload-mode-option {
       display: flex; gap: 9px; align-items: flex-start; padding: 10px 12px;
@@ -669,10 +685,16 @@
   </nav>
   <div id="user-info">
     <span id="user-email"></span>
+    <button id="manage-billing-btn">Manage billing</button>
     <button class="icon" id="theme-btn" title="Toggle theme" aria-label="Toggle colour theme">◐</button>
     <button id="sign-out-btn" style="display:none">Sign out</button>
   </div>
 </header>
+
+<div id="trial-banner">
+  <span id="trial-banner-text"></span>
+  <button id="trial-banner-subscribe-btn">Subscribe</button>
+</div>
 
 <!-- Landing page -->
 <div id="login-screen">
@@ -882,6 +904,17 @@
   </div>
 </div>
 
+<div id="paywall-modal" class="modal-backdrop" style="display:none">
+  <div class="modal">
+    <h2>Your free trial has ended</h2>
+    <p>Subscribe to keep uploading, editing, and organizing your documents in Life Cabinet.</p>
+    <div id="billing-status-text"></div>
+    <div class="modal-actions" style="justify-content:center">
+      <button class="primary" id="paywall-subscribe-btn">Subscribe</button>
+    </div>
+  </div>
+</div>
+
 <!-- Firebase SDK -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
@@ -948,6 +981,10 @@ async function api(path, options = {}) {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
+    if (res.status === 402) {
+      billingInfo = { ...(billingInfo || {}), entitled: false };
+      renderBilling();
+    }
     throw new Error(body.detail || res.statusText);
   }
   return res.status === 204 ? null : res.json();
@@ -1186,12 +1223,17 @@ onAuthStateChanged(auth, user => {
     $("sign-out-btn").style.display = "";
     $("user-email").textContent = user.email;
     loadDocuments(user.email);
+    refreshBilling();
   } else {
     document.body.classList.remove("signed-in");
     $("sign-out-btn").style.display = "none";
     $("user-email").textContent = "";
     allDocs = [];
     selectedId = cursorId = null;
+    billingInfo = null;
+    $("trial-banner").classList.remove("show");
+    $("paywall-modal").style.display = "none";
+    $("manage-billing-btn").style.display = "none";
   }
 });
 
@@ -2060,6 +2102,10 @@ $("upload-submit-btn").onclick = async () => {
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
+      if (res.status === 402) {
+        billingInfo = { ...(billingInfo || {}), entitled: false };
+        renderBilling();
+      }
       throw new Error(body.detail || res.statusText);
     }
 
@@ -2109,6 +2155,79 @@ addEventListener("keydown", e => {
 
   if (e.key === "Enter" && cursorId) { e.preventDefault(); select(cursorId); }
 });
+
+// ── Billing ──────────────────────────────────────────────────
+let billingInfo = null;
+
+function returnUrl() {
+  return `${window.location.origin}${window.location.pathname}`;
+}
+
+async function refreshBilling() {
+  try {
+    billingInfo = await api("/billing/status");
+  } catch (e) {
+    console.error("Failed to load billing status", e);
+    return;
+  }
+  renderBilling();
+}
+
+function renderBilling() {
+  if (!billingInfo) return;
+
+  $("manage-billing-btn").style.display = billingInfo.plan === "active" ? "" : "none";
+
+  if (!billingInfo.entitled) {
+    $("trial-banner").classList.remove("show");
+    $("billing-status-text").textContent = billingInfo.price_display || "";
+    $("paywall-modal").style.display = "flex";
+    return;
+  }
+
+  $("paywall-modal").style.display = "none";
+  if (billingInfo.plan === "trial" && billingInfo.trial_days_left != null) {
+    const n = billingInfo.trial_days_left;
+    $("trial-banner-text").textContent = `${n} day${n === 1 ? "" : "s"} left in your free trial.`;
+    $("trial-banner").classList.add("show");
+  } else {
+    $("trial-banner").classList.remove("show");
+  }
+}
+
+async function startCheckout() {
+  const { url } = await api("/billing/checkout-session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      success_url: `${returnUrl()}?checkout=success`,
+      cancel_url: `${returnUrl()}?checkout=cancel`,
+    }),
+  });
+  window.location.href = url;
+}
+
+async function openBillingPortal() {
+  const { url } = await api("/billing/portal-session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ return_url: returnUrl() }),
+  });
+  window.location.href = url;
+}
+
+$("trial-banner-subscribe-btn").onclick = () => startCheckout().catch(e => alert(e.message));
+$("paywall-subscribe-btn").onclick = () => startCheckout().catch(e => alert(e.message));
+$("manage-billing-btn").onclick = () => openBillingPortal().catch(e => alert(e.message));
+
+// Coming back from Stripe Checkout — clean the URL and re-check entitlement
+// (webhook may take a beat to land, so this can briefly still show the paywall).
+{
+  const params = new URLSearchParams(window.location.search);
+  if (params.has("checkout")) {
+    window.history.replaceState({}, "", returnUrl());
+  }
+}
 
 // ── Boot ─────────────────────────────────────────────────────
 render();

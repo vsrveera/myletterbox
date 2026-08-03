@@ -1,13 +1,15 @@
 import asyncio
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from google.cloud import firestore, storage
 
 logger = logging.getLogger("myletterbox")
 
 _GCS_BUCKET = os.environ.get("GCS_BUCKET", "myletterbox-757041740498")
+
+TRIAL_DAYS = 30
 
 # Fields a client is allowed to change via the PATCH /documents/{id} endpoint.
 EDITABLE_DOCUMENT_FIELDS = {
@@ -201,3 +203,55 @@ def _update_document_fields_sync(sender_email: str, doc_id: str, updates: dict) 
 async def update_document_fields(sender_email: str, doc_id: str, updates: dict) -> None:
     """Apply a whitelisted set of metadata edits to a document the user owns."""
     await asyncio.to_thread(_update_document_fields_sync, sender_email, doc_id, updates)
+
+
+# ---------------------------------------------------------------------------
+# Billing (trial / subscription state, stored on the users/{email} root doc)
+# ---------------------------------------------------------------------------
+
+def _get_or_create_user_sync(email: str) -> dict:
+    ref = _fs().collection("users").document(email)
+    snap = ref.get()
+    if snap.exists:
+        return snap.to_dict()
+
+    data = {
+        "plan": "trial",
+        "trial_ends_at": datetime.now(timezone.utc) + timedelta(days=TRIAL_DAYS),
+        "created_at": datetime.now(timezone.utc),
+    }
+    ref.set(data)
+    logger.info("Created user doc for %s — %d-day trial", email, TRIAL_DAYS)
+    return data
+
+
+async def get_or_create_user(email: str) -> dict:
+    """Return this user's billing doc, creating it with a fresh trial on first sign-in."""
+    return await asyncio.to_thread(_get_or_create_user_sync, email)
+
+
+def _update_user_billing_sync(email: str, updates: dict) -> None:
+    _fs().collection("users").document(email).set(updates, merge=True)
+    logger.info("Updated billing for %s: %s", email, updates)
+
+
+async def update_user_billing(email: str, updates: dict) -> None:
+    """Merge Stripe/plan fields (plan, stripe_customer_id, stripe_subscription_id) into the user doc."""
+    await asyncio.to_thread(_update_user_billing_sync, email, updates)
+
+
+def _find_user_email_by_customer_sync(customer_id: str) -> str | None:
+    docs = (
+        _fs().collection("users")
+        .where("stripe_customer_id", "==", customer_id)
+        .limit(1)
+        .stream()
+    )
+    for d in docs:
+        return d.id
+    return None
+
+
+async def find_user_email_by_customer(customer_id: str) -> str | None:
+    """Look up which user owns a given Stripe customer id — used by the webhook handler."""
+    return await asyncio.to_thread(_find_user_email_by_customer_sync, customer_id)

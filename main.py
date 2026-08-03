@@ -4,11 +4,13 @@ import os
 import re
 import tempfile
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 import firebase_admin
 import httpx
 import markdown as md
+import stripe
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,7 +19,14 @@ from firebase_admin import auth as firebase_auth
 
 load_dotenv()
 
-from storage import get_asset_names, save_document, update_document_fields  # noqa: E402
+from storage import (  # noqa: E402
+    find_user_email_by_customer,
+    get_asset_names,
+    get_or_create_user,
+    save_document,
+    update_document_fields,
+    update_user_billing,
+)
 from summarize_images import ACCEPTED_IMAGE_TYPES, analyze_email, combine_attachments_to_pdf, summarize_german_document  # noqa: E402
 
 logging.basicConfig(level=logging.INFO)
@@ -28,12 +37,18 @@ firebase_admin.initialize_app()
 app = FastAPI(title="myletterbox")
 AGENTMAIL_BASE = "https://api.agentmail.to/v0"
 
+stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
+STRIPE_PRICE_ID = os.environ.get("STRIPE_PRICE_ID", "")
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+STRIPE_PRICE_DISPLAY = os.environ.get("STRIPE_PRICE_DISPLAY", "")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://project-f33cb18b-d366-43b3-9ee.web.app",
         "https://project-f33cb18b-d366-43b3-9ee.firebaseapp.com",
         "http://localhost:5000",
+        "http://localhost:5050",
     ],
     allow_methods=["GET", "POST", "PATCH"],
     allow_headers=["Authorization", "Content-Type"],
@@ -54,6 +69,33 @@ async def _verify_user(request: Request) -> str:
     if not email:
         raise HTTPException(status_code=401, detail="Token has no email claim")
     return email.strip().lower()
+
+
+# ---------------------------------------------------------------------------
+# Billing / entitlement
+# ---------------------------------------------------------------------------
+
+def _entitlement_payload(user: dict) -> dict:
+    """Derive {plan, entitled, trial_days_left} from a users/{email} billing doc."""
+    plan = user.get("plan", "trial")
+    trial_ends_at = user.get("trial_ends_at")
+
+    if plan in ("active", "free"):
+        return {"plan": plan, "entitled": True, "trial_days_left": None}
+
+    if plan == "trial" and trial_ends_at:
+        remaining = trial_ends_at - datetime.now(timezone.utc)
+        if remaining.total_seconds() > 0:
+            return {"plan": plan, "entitled": True, "trial_days_left": max(remaining.days, 0) + 1}
+
+    return {"plan": plan, "entitled": False, "trial_days_left": 0}
+
+
+async def _require_entitlement(email: str) -> None:
+    """Raise 402 if this user's trial has lapsed and they have no active subscription."""
+    user = await get_or_create_user(email)
+    if not _entitlement_payload(user)["entitled"]:
+        raise HTTPException(status_code=402, detail="Your free trial has ended. Please subscribe to continue.")
 
 
 # ---------------------------------------------------------------------------
@@ -236,6 +278,11 @@ async def agentmail_webhook(request: Request):
     m = re.search(r"<([^>]+)>", sender_raw)
     sender = m.group(1).strip().lower() if m else sender_raw.strip().lower()
 
+    user = await get_or_create_user(sender)
+    if not _entitlement_payload(user)["entitled"]:
+        logger.info("Skipping email from %s — trial expired / no active subscription", sender)
+        return {"status": "entitlement_denied"}
+
     # Body is delivered via a pre-signed URL, not inline in the webhook payload
     body = message.get("text") or ""
     body_url = message.get("body_url")
@@ -411,6 +458,7 @@ async def upload_document(
     classification). mode="separate" classifies and saves each file as its own document.
     """
     sender = await _verify_user(request)
+    await _require_entitlement(sender)
 
     if not files:
         raise HTTPException(status_code=400, detail="At least one file is required.")
@@ -451,9 +499,127 @@ async def upload_document(
 async def patch_document(doc_id: str, request: Request):
     """Edit a document's editable metadata (workflow_status, category, asset_name, tags, subject, summary)."""
     sender = await _verify_user(request)
+    await _require_entitlement(sender)
     updates = await request.json()
     if not isinstance(updates, dict):
         raise HTTPException(status_code=400, detail="Body must be a JSON object.")
 
     await update_document_fields(sender, doc_id, updates)
+    return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# Billing (Stripe)
+# ---------------------------------------------------------------------------
+
+@app.get("/billing/status")
+async def billing_status(request: Request):
+    email = await _verify_user(request)
+    user = await get_or_create_user(email)
+    payload = _entitlement_payload(user)
+    payload["price_display"] = STRIPE_PRICE_DISPLAY
+    return payload
+
+
+@app.post("/billing/checkout-session")
+async def create_checkout_session(request: Request):
+    """Create a Stripe Checkout session for the single EUR subscription plan."""
+    email = await _verify_user(request)
+    body = await request.json()
+    success_url = body.get("success_url")
+    cancel_url = body.get("cancel_url")
+    if not success_url or not cancel_url:
+        raise HTTPException(status_code=400, detail="success_url and cancel_url are required.")
+
+    user = await get_or_create_user(email)
+    customer_id = user.get("stripe_customer_id")
+
+    session_kwargs = {
+        "mode": "subscription",
+        "line_items": [{"price": STRIPE_PRICE_ID, "quantity": 1}],
+        "success_url": success_url,
+        "cancel_url": cancel_url,
+        "client_reference_id": email,
+    }
+    if customer_id:
+        session_kwargs["customer"] = customer_id
+    else:
+        session_kwargs["customer_email"] = email
+
+    try:
+        session = stripe.checkout.Session.create(**session_kwargs)
+    except stripe.error.StripeError as exc:
+        raise HTTPException(status_code=502, detail=f"Stripe error: {exc.user_message or str(exc)}") from exc
+
+    return {"url": session.url}
+
+
+@app.post("/billing/portal-session")
+async def create_portal_session(request: Request):
+    """Create a Stripe Customer Portal session so a subscribed user can manage/cancel billing."""
+    email = await _verify_user(request)
+    body = await request.json()
+    return_url = body.get("return_url")
+    if not return_url:
+        raise HTTPException(status_code=400, detail="return_url is required.")
+
+    user = await get_or_create_user(email)
+    customer_id = user.get("stripe_customer_id")
+    if not customer_id:
+        raise HTTPException(status_code=400, detail="No billing account found for this user yet.")
+
+    try:
+        session = stripe.billing_portal.Session.create(customer=customer_id, return_url=return_url)
+    except stripe.error.StripeError as exc:
+        raise HTTPException(status_code=502, detail=f"Stripe error: {exc.user_message or str(exc)}") from exc
+
+    return {"url": session.url}
+
+
+_SUBSCRIPTION_STATUS_TO_PLAN = {
+    "active": "active",
+    "trialing": "active",
+    "past_due": "past_due",
+    "unpaid": "past_due",
+    "canceled": "canceled",
+    "incomplete_expired": "canceled",
+}
+
+
+@app.post("/webhook/stripe")
+async def stripe_webhook(request: Request):
+    """Stripe webhook receiver — keeps each user's plan/subscription state in sync."""
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature", "")
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
+    except (ValueError, stripe.error.SignatureVerificationError) as exc:
+        raise HTTPException(status_code=400, detail="Invalid Stripe webhook signature.") from exc
+
+    event_type = event["type"]
+    data = event["data"]["object"].to_dict()  # StripeObject isn't dict-like in this SDK version
+    logger.info("Stripe webhook: %s", event_type)
+
+    if event_type == "checkout.session.completed":
+        email = data.get("client_reference_id") or (data.get("customer_details") or {}).get("email")
+        if email:
+            await update_user_billing(email.strip().lower(), {
+                "plan": "active",
+                "stripe_customer_id": data.get("customer"),
+                "stripe_subscription_id": data.get("subscription"),
+            })
+        else:
+            logger.warning("checkout.session.completed with no resolvable email: %s", data.get("id"))
+
+    elif event_type in ("customer.subscription.updated", "customer.subscription.deleted"):
+        customer_id = data.get("customer")
+        plan = _SUBSCRIPTION_STATUS_TO_PLAN.get(data.get("status"), "past_due")
+        if event_type == "customer.subscription.deleted":
+            plan = "canceled"
+        email = await find_user_email_by_customer(customer_id)
+        if email:
+            await update_user_billing(email, {"plan": plan, "stripe_subscription_id": data.get("id")})
+        else:
+            logger.warning("Subscription event for unknown Stripe customer: %s", customer_id)
+
     return {"status": "ok"}
