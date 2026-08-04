@@ -1,4 +1,5 @@
 import base64
+import html
 import logging
 import os
 import re
@@ -47,7 +48,7 @@ STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 STRIPE_PRICE_DISPLAY = os.environ.get("STRIPE_PRICE_DISPLAY", "")
 
 REMINDERS_JOB_SECRET = os.environ.get("REMINDERS_JOB_SECRET", "")
-APP_URL = os.environ.get("APP_URL", "https://project-f33cb18b-d366-43b3-9ee.web.app")
+APP_URL = os.environ.get("APP_URL", "https://cabinet.orgme.guru")
 
 app.add_middleware(
     CORSMiddleware,
@@ -174,10 +175,10 @@ async def _send_reply(
     logger.info("Reply sent — subject: %r  message: %s", subject, message_id)
 
 
-async def _send_digest_email(inbox_id: str, to_email: str, subject: str, text: str) -> None:
+async def _send_digest_email(inbox_id: str, to_email: str, subject: str, text: str, html_body: str) -> None:
     """Send a brand-new email (not a reply) — used for the weekly reminders digest."""
     url = f"{AGENTMAIL_BASE}/inboxes/{inbox_id}/messages/send"
-    payload = {"to": [to_email], "subject": subject, "text": text}
+    payload = {"to": [to_email], "subject": subject, "text": text, "html": html_body}
     async with httpx.AsyncClient(timeout=30) as http:
         resp = await http.post(url, headers=_agentmail_headers(), json=payload)
         resp.raise_for_status()
@@ -588,21 +589,89 @@ def _digest_sections(docs: list[dict]) -> tuple[list[dict], list[dict]]:
     return attention, upcoming[:10]
 
 
-def _build_digest_email(attention: list[dict], upcoming: list[dict]) -> tuple[str, str]:
-    total = len(attention) + len(upcoming)
+def _digest_item_meta(doc: dict, today: date) -> dict:
+    exp = _parse_expiry_date(doc)
+    return {
+        "subject": doc.get("subject") or "Untitled document",
+        "expiry_label": exp.strftime("%b %-d, %Y") if exp else None,
+        "overdue": bool(exp and exp < today),
+    }
+
+
+def _build_digest_email(attention: list[dict], upcoming: list[dict]) -> tuple[str, str, str]:
+    today = datetime.now(timezone.utc).date()
+    attention_meta = [_digest_item_meta(d, today) for d in attention]
+    upcoming_meta = [_digest_item_meta(d, today) for d in upcoming]
+
+    total = len(attention_meta) + len(upcoming_meta)
     subject = f"Life Cabinet: {total} item{'' if total == 1 else 's'} to look at this week"
 
-    def line(d: dict) -> str:
-        exp = d.get("expiry_date")
-        return f"- {d.get('subject') or 'Untitled document'}" + (f" — expires {exp}" if exp else "")
+    # Plain-text fallback
+    def text_line(m: dict) -> str:
+        if not m["expiry_label"]:
+            return f"- {m['subject']}"
+        prefix = "overdue since" if m["overdue"] else "expires"
+        return f"- {m['subject']} — {prefix} {m['expiry_label']}"
 
-    lines = ["Here's what's coming up in your Life Cabinet this week.", ""]
-    if attention:
-        lines += ["NEEDS ATTENTION", *[line(d) for d in attention], ""]
-    if upcoming:
-        lines += ["UPCOMING", *[line(d) for d in upcoming], ""]
-    lines.append(f"Open Life Cabinet: {APP_URL}")
-    return subject, "\n".join(lines)
+    text_lines = ["Here's what's coming up in your Life Cabinet this week.", ""]
+    if attention_meta:
+        text_lines += ["NEEDS ATTENTION", *[text_line(m) for m in attention_meta], ""]
+    if upcoming_meta:
+        text_lines += ["UPCOMING", *[text_line(m) for m in upcoming_meta], ""]
+    text_lines.append(f"Open Life Cabinet: {APP_URL}")
+    text = "\n".join(text_lines)
+
+    # Styled HTML version, matching the app's own light-theme colour tokens
+    def html_item(m: dict) -> str:
+        badge = (
+            '<span style="display:inline-block;margin-left:8px;padding:1px 8px;'
+            'border-radius:999px;background:#fdecea;color:#d64545;font-size:11px;'
+            'font-weight:600;vertical-align:middle;">OVERDUE</span>'
+        ) if m["overdue"] else ""
+        date_row = ""
+        if m["expiry_label"]:
+            label = "Overdue since" if m["overdue"] else "Expires"
+            date_row = (
+                f'<div style="color:#737d87;font-size:12.5px;margin-top:2px;">'
+                f'{label} {m["expiry_label"]}</div>'
+            )
+        return (
+            '<div style="padding:10px 0;border-bottom:1px solid #f1f3f5;">'
+            f'<div style="font-size:14px;font-weight:600;color:#16191d;">'
+            f'{html.escape(m["subject"])}{badge}</div>{date_row}</div>'
+        )
+
+    def html_section(title: str, items: list[dict]) -> str:
+        if not items:
+            return ""
+        return (
+            '<div style="font-size:11.5px;font-weight:700;letter-spacing:.06em;'
+            f'text-transform:uppercase;color:#737d87;margin:20px 0 4px;">{title}</div>'
+            + "".join(html_item(m) for m in items)
+        )
+
+    html_body = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:24px;background:#f6f7f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+  <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e3e6ea;border-radius:12px;overflow:hidden;">
+    <div style="padding:20px 24px;border-bottom:1px solid #e3e6ea;">
+      <span style="font-size:17px;font-weight:700;color:#16191d;letter-spacing:-0.3px;">Life Cabinet</span>
+    </div>
+    <div style="padding:20px 24px;">
+      <p style="margin:0;color:#495057;font-size:14px;line-height:1.6;">Here's what's coming up this week.</p>
+      {html_section("Needs Attention", attention_meta)}
+      {html_section("Upcoming", upcoming_meta)}
+      <a href="{APP_URL}" style="display:inline-block;margin-top:20px;background:#1a73e8;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 18px;border-radius:8px;">Open Life Cabinet</a>
+    </div>
+    <div style="padding:14px 24px;border-top:1px solid #e3e6ea;color:#8a939f;font-size:12px;line-height:1.5;">
+      You're receiving this because weekly reminders are turned on. Toggle the bell icon in Life Cabinet's header to turn them off.
+    </div>
+  </div>
+</body>
+</html>"""
+
+    return subject, text, html_body
 
 
 @app.post("/jobs/reminders-digest")
@@ -630,8 +699,8 @@ async def reminders_digest_job(request: Request):
                 skipped += 1
                 continue
 
-            subject, text = _build_digest_email(attention, upcoming)
-            await _send_digest_email(inbox_id, email, subject, text)
+            subject, text, html_body = _build_digest_email(attention, upcoming)
+            await _send_digest_email(inbox_id, email, subject, text, html_body)
             sent += 1
         except Exception:
             logger.exception("Failed to send reminders digest to %s", email)
