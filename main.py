@@ -20,6 +20,7 @@ from firebase_admin import auth as firebase_auth
 load_dotenv()
 
 from storage import (  # noqa: E402
+    claim_webhook_event,
     find_user_email_by_customer,
     get_asset_names,
     get_or_create_user,
@@ -268,6 +269,10 @@ async def agentmail_webhook(request: Request):
         return {"status": "ignored", "event_type": event_type}
 
     event_id = payload.get("event_id", "")
+    if event_id and not await claim_webhook_event(event_id):
+        logger.info("Duplicate webhook delivery for event_id=%s — skipping", event_id)
+        return {"status": "duplicate"}
+
     message = payload.get("message", {})
     thread_meta = payload.get("thread", {})
 

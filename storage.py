@@ -3,6 +3,7 @@ import logging
 import os
 from datetime import datetime, timedelta, timezone
 
+from google.api_core import exceptions as gcloud_exceptions
 from google.cloud import firestore, storage
 
 logger = logging.getLogger("myletterbox")
@@ -33,6 +34,21 @@ def _gcs() -> storage.Client:
     if _gcs_client is None:
         _gcs_client = storage.Client()
     return _gcs_client
+
+
+def _claim_webhook_event_sync(event_id: str) -> bool:
+    """Atomically claim an AgentMail event_id. Returns False if already claimed (duplicate delivery)."""
+    ref = _fs().collection("webhook_events").document(event_id)
+    try:
+        ref.create({"received_at": datetime.now(timezone.utc)})
+        return True
+    except gcloud_exceptions.AlreadyExists:
+        return False
+
+
+async def claim_webhook_event(event_id: str) -> bool:
+    """AgentMail retries webhooks it doesn't hear back from quickly; dedupe on event_id."""
+    return await asyncio.to_thread(_claim_webhook_event_sync, event_id)
 
 
 def _get_asset_names_sync(sender_email: str) -> list[str]:
