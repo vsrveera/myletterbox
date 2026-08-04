@@ -130,15 +130,23 @@
     /* ── Landing page ── */
     #login-screen { padding: 0 24px 80px; }
 
-    .hero {
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      text-align: center; gap: 18px;
-      min-height: calc(72vh - 56px); padding: 48px 16px 40px;
-      max-width: 640px; margin: 0 auto;
+    @keyframes landing-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .landing-in {
+      opacity: 0;
+      animation: landing-in var(--dur-med) var(--ease-out) forwards;
+      animation-delay: var(--landing-delay, 0s);
     }
+
+    .hero {
+      display: flex; align-items: center; justify-content: center; gap: 48px;
+      min-height: calc(68vh - 56px); padding: 48px 16px 40px;
+      max-width: 1080px; margin: 0 auto;
+    }
+    .hero-copy { flex: 1 1 480px; max-width: 520px; display: flex; flex-direction: column; gap: 18px; }
     .hero-badge {
       font-size: 12.5px; font-weight: 650; letter-spacing: .04em; color: var(--accent);
       background: var(--accent-soft); border-radius: 999px; padding: 5px 14px;
+      align-self: flex-start;
     }
     .hero h2 {
       font-size: 40px; font-weight: 700; letter-spacing: -1px; line-height: 1.15;
@@ -147,9 +155,28 @@
     .hero p.lede {
       color: var(--text-soft); font-size: 17px; max-width: 480px; line-height: 1.6;
     }
-    .hero-actions { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 6px; }
+    .hero-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 6px; }
     .hero-actions button.primary { font-size: 15px; padding: 11px 22px; }
-    .hero-actions p { color: var(--text-muted); font-size: 13px; max-width: 340px; line-height: 1.5; }
+    .hero-trial { color: var(--text); font-size: 13.5px; font-weight: 600; }
+    .hero-actions p.hero-hint { color: var(--text-muted); font-size: 13px; max-width: 360px; line-height: 1.5; }
+
+    .trust-strip {
+      display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px;
+    }
+    .trust-strip span {
+      font-size: 12.5px; color: var(--text-soft); background: var(--surface);
+      border: 1px solid var(--border); border-radius: 999px; padding: 5px 12px;
+      display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+    }
+
+    .hero-visual { flex: 1 1 340px; max-width: 380px; display: flex; justify-content: center; }
+    .hero-visual svg { width: 100%; height: auto; max-width: 340px; }
+    .hero-visual .hv-link { stroke: var(--border-strong); stroke-width: 1.3; }
+    .hero-visual .hv-link.tag { stroke-dasharray: 2,3; }
+    .hero-visual .hv-doc circle { fill: var(--text-muted); }
+    .hero-visual .hv-asset circle { fill: var(--accent); animation: hv-pulse 2.8s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+    .hero-visual .hv-tag circle { fill: var(--graph-tag); }
+    @keyframes hv-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
 
     .landing-section { max-width: 1040px; margin: 0 auto; padding: 40px 0; }
     .landing-section h3 {
@@ -163,7 +190,9 @@
     .feature-card {
       background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
       padding: 20px; text-align: left; box-shadow: var(--shadow-sm);
+      transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
     }
+    .feature-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--border-strong); }
     .feature-card .feature-icon { font-size: 22px; margin-bottom: 10px; }
     .feature-card h4 { font-size: 15px; font-weight: 640; margin-bottom: 6px; letter-spacing: -0.2px; }
     .feature-card p { color: var(--text-muted); font-size: 13.5px; line-height: 1.55; }
@@ -177,6 +206,27 @@
     }
     .step h4 { font-size: 14.5px; font-weight: 620; margin-bottom: 5px; }
     .step p { color: var(--text-muted); font-size: 13px; line-height: 1.55; }
+
+    .pricing-card {
+      max-width: 360px; margin: 0 auto; text-align: center;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 32px 28px; box-shadow: var(--shadow-sm);
+    }
+    .pricing-price { font-size: 40px; font-weight: 700; letter-spacing: -1px; color: var(--text); }
+    .pricing-price span { font-size: 15px; font-weight: 500; color: var(--text-muted); }
+    .pricing-card p.pricing-desc { color: var(--text-muted); font-size: 13.5px; line-height: 1.55; margin: 10px 0 18px; }
+    .pricing-trial { font-size: 13px; color: var(--text-soft); margin-bottom: 16px; }
+    .pricing-card button.primary { width: 100%; font-size: 15px; padding: 11px 22px; }
+
+    @media (max-width: 780px) {
+      .hero { flex-direction: column; text-align: center; gap: 32px; padding-top: 36px; }
+      .hero-copy { align-items: center; max-width: 520px; }
+      .hero-badge { align-self: center; }
+      .hero-actions { align-items: center; }
+      .hero-actions p.hero-hint { max-width: 420px; }
+      .trust-strip { justify-content: center; }
+      .hero-visual { max-width: 260px; }
+    }
 
     @media (max-width: 640px) {
       .hero h2 { font-size: 30px; }
@@ -769,16 +819,43 @@
 <!-- Landing page -->
 <div id="login-screen">
   <div class="hero">
-    <span class="hero-badge">AI-powered · Personal document vault</span>
-    <h2>Every important document in your life, <span>organized automatically.</span></h2>
-    <p class="lede">
-      Life Cabinet reads, classifies, and files your letters, bills, and contracts
-      the moment they arrive — organized around the people, property, and
-      accounts they actually belong to, not folders.
-    </p>
-    <div class="hero-actions">
-      <button class="primary" id="sign-in-btn">Sign in with Google</button>
-      <p>Sign in with the Google account you use to send letters to your AgentMail inbox.</p>
+    <div class="hero-copy">
+      <span class="hero-badge landing-in" style="--landing-delay:0s">AI-powered · Personal document vault</span>
+      <h2 class="landing-in" style="--landing-delay:.05s">Every important document in your life, <span>organized automatically.</span></h2>
+      <p class="lede landing-in" style="--landing-delay:.1s">
+        Life Cabinet reads, classifies, and files your letters, bills, and contracts
+        the moment they arrive — organized around the people, property, and
+        accounts they actually belong to, not folders.
+      </p>
+      <div class="hero-actions landing-in" style="--landing-delay:.15s">
+        <button class="primary" id="sign-in-btn">Sign in with Google</button>
+        <p class="hero-trial">Free for 30 days, then €2/month — cancel anytime.</p>
+        <p class="hero-hint">Sign in with the Google account you use to send letters to your AgentMail inbox.</p>
+      </div>
+      <div class="trust-strip landing-in" style="--landing-delay:.2s">
+        <span>🔒 Private to your account</span>
+        <span>📨 Works entirely by email</span>
+        <span>🇩🇪 Handles German letters too</span>
+      </div>
+    </div>
+    <div class="hero-visual landing-in" style="--landing-delay:.1s" aria-hidden="true">
+      <svg viewBox="0 0 340 260">
+        <line class="hv-link" x1="130" y1="140" x2="60" y2="70" />
+        <line class="hv-link" x1="130" y1="140" x2="210" y2="50" />
+        <line class="hv-link" x1="130" y1="140" x2="50" y2="210" />
+        <line class="hv-link" x1="130" y1="140" x2="220" y2="220" />
+        <line class="hv-link" x1="130" y1="140" x2="250" y2="120" />
+        <line class="hv-link tag" x1="210" y1="50" x2="140" y2="40" />
+        <line class="hv-link tag" x1="250" y1="120" x2="280" y2="180" />
+        <g class="hv-doc"><circle cx="60" cy="70" r="7" /></g>
+        <g class="hv-doc"><circle cx="210" cy="50" r="7" /></g>
+        <g class="hv-doc"><circle cx="50" cy="210" r="7" /></g>
+        <g class="hv-doc"><circle cx="220" cy="220" r="7" /></g>
+        <g class="hv-doc"><circle cx="250" cy="120" r="7" /></g>
+        <g class="hv-tag"><circle cx="140" cy="40" r="5" /></g>
+        <g class="hv-tag"><circle cx="280" cy="180" r="5" /></g>
+        <g class="hv-asset"><circle cx="130" cy="140" r="11" /></g>
+      </svg>
     </div>
   </div>
 
@@ -805,6 +882,16 @@
         <h4>Find anything in seconds</h4>
         <p>Search by keyword, category, asset, or date — and jump straight to the document you need.</p>
       </div>
+      <div class="feature-card">
+        <div class="feature-icon">🕸️</div>
+        <h4>See how it all connects</h4>
+        <p>A visual graph links every document to the people, assets, and tags it belongs to — so a lease, its deposit, and its repairs are never far apart.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔔</div>
+        <h4>A weekly heads-up, if you want it</h4>
+        <p>Turn on reminders and get a short email each week listing what's overdue or coming due — nothing to check unless something needs you.</p>
+      </div>
     </div>
   </div>
 
@@ -826,6 +913,16 @@
         <h4>Find it anytime</h4>
         <p>Browse your Cabinet, track it through your Workflow, or search for it later — it's always there.</p>
       </div>
+    </div>
+  </div>
+
+  <div class="landing-section">
+    <h3>Simple pricing</h3>
+    <div class="pricing-card">
+      <div class="pricing-price">€2<span>/month</span></div>
+      <p class="pricing-desc">Unlimited documents, AI classification, the connections graph, and weekly reminders — one plan, everything included.</p>
+      <div class="pricing-trial">Free for the first 30 days. No credit card required to start.</div>
+      <button class="primary" id="sign-in-btn-pricing">Start your free trial</button>
     </div>
   </div>
 </div>
@@ -1311,7 +1408,9 @@ onAuthStateChanged(auth, user => {
   }
 });
 
-$("sign-in-btn").onclick = () => signInWithPopup(auth, provider).catch(e => alert(e.message));
+function startSignIn() { signInWithPopup(auth, provider).catch(e => alert(e.message)); }
+$("sign-in-btn").onclick = startSignIn;
+$("sign-in-btn-pricing").onclick = startSignIn;
 $("sign-out-btn").onclick = () => signOut(auth);
 
 // ── Load ─────────────────────────────────────────────────────
