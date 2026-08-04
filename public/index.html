@@ -441,6 +441,24 @@
     .state.error h3 { color: #d64545; }
     #detail .state { padding: 72px 24px; }
 
+    .onboarding-inbox {
+      display: inline-flex; align-items: center; gap: 8px; margin: 16px 0 4px;
+      background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px;
+      padding: 6px 6px 6px 16px;
+    }
+    .onboarding-inbox code { font-size: 13px; color: var(--text); }
+    .onboarding-inbox button {
+      font-size: 12px; padding: 5px 12px; border-radius: 999px; cursor: pointer;
+      border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
+    }
+    .onboarding-inbox button:hover { border-color: var(--accent); color: var(--accent); }
+    .state-divider {
+      display: flex; align-items: center; gap: 10px; margin: 18px auto 14px; max-width: 160px;
+      color: var(--text-muted); font-size: 12px;
+    }
+    .state-divider::before, .state-divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+    .state .primary { margin-top: 2px; }
+
     .skeleton {
       background: var(--surface); border: 1px solid var(--border);
       border-radius: 10px; padding: 12px 14px;
@@ -1371,13 +1389,42 @@ function stateBlock(icon, title, body, cls = "") {
   </div>`;
 }
 
+const INBOX_ADDRESS = "myletterbox@agentmail.to";
+
+function firstRunBlock() {
+  return `<div class="state state-onboarding">
+    <div class="state-icon">📬</div>
+    <h3>Your cabinet is empty — let's file your first document</h3>
+    <p>Forward any letter, bill, or receipt to your personal inbox and Life Cabinet reads, classifies, and files it automatically.</p>
+    <div class="onboarding-inbox">
+      <code>${esc(INBOX_ADDRESS)}</code>
+      <button id="copy-inbox-btn" type="button">Copy</button>
+    </div>
+    <div class="state-divider"><span>or</span></div>
+    <button id="empty-upload-btn" class="primary" type="button">Upload a document</button>
+  </div>`;
+}
+
+async function copyInboxAddress() {
+  const btn = $("copy-inbox-btn");
+  if (!btn) return;
+  try {
+    await navigator.clipboard.writeText(INBOX_ADDRESS);
+    btn.textContent = "Copied!";
+  } catch {
+    btn.textContent = "Copy failed";
+  }
+  setTimeout(() => { if ($("copy-inbox-btn")) $("copy-inbox-btn").textContent = "Copy"; }, 1500);
+}
+
 function emptyBlock() {
   if (loadState === "error")
     return stateBlock("⚠", "Could not load documents", esc(loadError), "error");
   if (searchQ)
     return stateBlock("⌕", "No matches", `Nothing matches “${esc(searchQ)}”. Try a different term.`);
-  return stateBlock("✉", "No documents yet",
-    "Send an email with attachments to your AgentMail inbox and the summary will appear here.");
+  if (allDocs.length === 0)
+    return firstRunBlock();
+  return stateBlock("🗂", "No documents here", "Nothing matches the current filters. Clear them to see your full cabinet.");
 }
 
 function cardHtml(doc, isChild, threadCount) {
@@ -1413,7 +1460,12 @@ function renderList(docs) {
   const el = $("doc-list");
 
   if (loadState === "loading") { el.innerHTML = skeletonCards(6); return; }
-  if (!docs.length)            { el.innerHTML = emptyBlock(); return; }
+  if (!docs.length) {
+    el.innerHTML = emptyBlock();
+    $("copy-inbox-btn")?.addEventListener("click", copyInboxAddress);
+    $("empty-upload-btn")?.addEventListener("click", openUploadModal);
+    return;
+  }
 
   // While searching, show a flat result list — thread collapsing hides matches.
   if (searchQ) {
@@ -1451,6 +1503,8 @@ function renderTable(docs) {
   }
   if (!docs.length) {
     tbody.innerHTML = `<tr><td colspan="5">${emptyBlock()}</td></tr>`;
+    $("copy-inbox-btn")?.addEventListener("click", copyInboxAddress);
+    $("empty-upload-btn")?.addEventListener("click", openUploadModal);
     return;
   }
 
