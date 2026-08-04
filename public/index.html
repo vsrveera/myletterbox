@@ -1002,6 +1002,7 @@
         <option value="Waiting">Waiting</option>
         <option value="Completed">Completed</option>
       </select>
+      <button class="icon" id="group-toggle-btn" title="Group by date: off" aria-label="Group documents by date" aria-pressed="false">🗓️</button>
       <div class="seg" role="group" aria-label="View mode">
         <button id="view-list-btn" class="active">Cards</button>
         <button id="view-table-btn">Table</button>
@@ -1119,6 +1120,7 @@ const WORKFLOW_STATUSES = ["Inbox", "Needs Action", "Waiting", "Completed"];
 let allDocs   = [];                 // newest first
 let allAssets = [];
 let viewMode  = localStorage.getItem("mlb-view") === "table" ? "table" : "list";
+let groupByDate = localStorage.getItem("mlb-group-by-date") === "1";  // off by default
 let selectedId = null;
 let cursorId   = null;              // keyboard cursor
 let detailReturnTab = null;         // tab to restore when the detail pane closes (e.g. "graph")
@@ -1504,6 +1506,9 @@ function render() {
   updateTabIndicator();
   $("view-list-btn").classList.toggle("active", viewMode === "list");
   $("view-table-btn").classList.toggle("active", viewMode === "table");
+  $("group-toggle-btn").classList.toggle("active", groupByDate);
+  $("group-toggle-btn").setAttribute("aria-pressed", String(groupByDate));
+  $("group-toggle-btn").title = `Group by date: ${groupByDate ? "on" : "off"}`;
 
   const docs = getFiltered();
   navIds = [];
@@ -1633,10 +1638,12 @@ function renderList(docs) {
   let bucket = null;
 
   for (const group of buildThreads(docs)) {
-    const b = timeBucket(docDate(group.latest));
-    if (b.key !== bucket) {
-      bucket = b.key;
-      html.push(`<div class="group-header">${esc(b.label)}</div>`);
+    if (groupByDate) {
+      const b = timeBucket(docDate(group.latest));
+      if (b.key !== bucket) {
+        bucket = b.key;
+        html.push(`<div class="group-header">${esc(b.label)}</div>`);
+      }
     }
 
     html.push(cardHtml(group.latest, false, group.items.length));
@@ -2280,6 +2287,11 @@ $("backdrop").onclick = closeDetail;
 
 $("view-list-btn").onclick = () => { viewMode = "list";  localStorage.setItem("mlb-view", viewMode); render(); };
 $("view-table-btn").onclick = () => { viewMode = "table"; localStorage.setItem("mlb-view", viewMode); render(); };
+$("group-toggle-btn").onclick = () => {
+  groupByDate = !groupByDate;
+  localStorage.setItem("mlb-group-by-date", groupByDate ? "1" : "0");
+  render();
+};
 
 $("search").oninput = e => {
   searchQ = e.target.value.trim().toLowerCase();
