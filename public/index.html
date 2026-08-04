@@ -26,6 +26,10 @@
       --shadow-md:   0 4px 16px rgba(16,24,40,.10);
       --shadow-lg:   -8px 0 32px rgba(16,24,40,.18);
       --radius:      12px;
+      --ease-out:    cubic-bezier(.16, 1, .3, 1);
+      --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+      --dur-fast:    .15s;
+      --dur-med:     .24s;
     }
 
     @media (prefers-color-scheme: dark) {
@@ -330,10 +334,14 @@
       overscroll-behavior: contain;
       z-index: 45;
       opacity: 0; pointer-events: none;
-      transform: translate(-50%, -50%) scale(.96);
-      transition: opacity .16s ease, transform .16s ease;
+      transform: translate(-50%, -50%) scale(.94) translateY(6px);
+      transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
     }
-    #detail.open { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
+    #detail.open {
+      opacity: 1; pointer-events: auto;
+      transform: translate(-50%, -50%) scale(1) translateY(0);
+      transition: opacity var(--dur-med) var(--ease-spring), transform var(--dur-med) var(--ease-spring);
+    }
     .detail-head {
       padding: 18px 22px 14px;
       border-bottom: 1px solid var(--border);
@@ -476,8 +484,12 @@
     }
 
     /* ── Backdrop (behind the detail modal) ── */
-    #backdrop { display: none; position: fixed; inset: 0; background: rgba(8,11,15,.45); z-index: 39; }
-    body.sheet-open #backdrop { display: block; }
+    #backdrop {
+      position: fixed; inset: 0; background: rgba(8,11,15,.45); z-index: 39;
+      opacity: 0; pointer-events: none;
+      transition: opacity var(--dur-fast) var(--ease-out);
+    }
+    body.sheet-open #backdrop { opacity: 1; pointer-events: auto; }
     body.sheet-open { overflow: hidden; }
 
     @media (max-width: 900px) {
@@ -500,19 +512,35 @@
     }
 
     /* ── Nav tabs ── */
-    #tabs { display: flex; gap: 2px; }
+    #tabs { display: flex; gap: 2px; position: relative; }
+    #tab-indicator {
+      position: absolute; top: 0; left: 0; height: 100%;
+      background: var(--accent-soft); border-radius: 8px;
+      transition: transform var(--dur-med) var(--ease-spring), width var(--dur-med) var(--ease-spring);
+      pointer-events: none; z-index: 0;
+    }
     .tab-btn {
+      position: relative; z-index: 1;
       border: none; background: none; padding: 8px 13px; border-radius: 8px;
       font-size: 14px; color: var(--text-soft); cursor: pointer; white-space: nowrap;
+      transition: color var(--dur-fast) var(--ease-out);
     }
-    .tab-btn:hover { background: var(--surface-2); }
-    .tab-btn.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+    .tab-btn:hover:not(.active) { background: var(--surface-2); }
+    .tab-btn:active { transform: scale(.95); }
+    .tab-btn.active { color: var(--accent); font-weight: 600; }
 
     #home-view, #cabinet-view, #workflow-view, #graph-view { display: none; }
-    body.tab-home #home-view { display: block; }
-    body.tab-cabinet #cabinet-view { display: block; }
-    body.tab-workflow #workflow-view { display: block; }
-    body.tab-graph #graph-view { display: block; }
+    body.tab-home #home-view,
+    body.tab-cabinet #cabinet-view,
+    body.tab-workflow #workflow-view,
+    body.tab-graph #graph-view {
+      display: block;
+      animation: view-enter var(--dur-med) var(--ease-out);
+    }
+    @keyframes view-enter {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
 
     /* ── Chip filter bars ── */
     .chip-bar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
@@ -520,9 +548,14 @@
       font-family: inherit; font-size: 12.5px; color: var(--text-soft);
       background: var(--surface); border: 1px solid var(--border-strong);
       border-radius: 999px; padding: 5px 12px; cursor: pointer; white-space: nowrap;
+      transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out),
+                  color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
     }
     .chip-btn:hover { border-color: var(--accent); }
+    .chip-btn:active { transform: scale(.94); }
     .chip-btn.active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); font-weight: 600; }
+    .chip-btn.pop { animation: chip-pop var(--dur-med) var(--ease-spring); }
+    @keyframes chip-pop { from { transform: scale(.9); } to { transform: scale(1); } }
 
     /* ── Category folder tiles ── */
     #category-bar { gap: 10px; }
@@ -530,19 +563,23 @@
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       width: 92px; padding: 12px 8px 9px; gap: 5px;
       background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-      font-family: inherit; cursor: pointer; transition: border-color .12s, background .12s, transform .12s;
+      font-family: inherit; cursor: pointer;
+      transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
     }
     .folder-btn:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+    .folder-btn:active { transform: scale(.95); }
     .folder-btn.active { border-color: var(--accent); background: var(--accent-soft); }
     .folder-icon { width: 36px; height: 27px; position: relative; }
     .folder-icon::before {
       content: ""; position: absolute; top: 0; left: 0; width: 15px; height: 6px;
       background: var(--text-muted); border-radius: 3px 4px 0 0;
+      transition: background var(--dur-fast) var(--ease-out);
     }
     .folder-icon::after {
       content: ""; position: absolute; top: 4px; left: 0; width: 36px; height: 23px;
       background: var(--surface-2); border: 1.5px solid var(--border-strong);
       border-radius: 2px 7px 7px 7px;
+      transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
     }
     .folder-btn.active .folder-icon::before,
     .folder-btn.active .folder-icon::after { background: var(--accent); border-color: var(--accent); }
@@ -708,6 +745,7 @@
 <header>
   <h1>Life Cabinet</h1>
   <nav id="tabs" role="tablist" aria-label="Sections">
+    <span id="tab-indicator" aria-hidden="true"></span>
     <button class="tab-btn" data-tab="home" role="tab" aria-selected="false">Home</button>
     <button class="tab-btn active" data-tab="cabinet" role="tab" aria-selected="true">Cabinet</button>
     <button class="tab-btn" data-tab="workflow" role="tab" aria-selected="false">Workflow</button>
@@ -1346,6 +1384,7 @@ function render() {
     b.classList.toggle("active", active);
     b.setAttribute("aria-selected", active);
   });
+  updateTabIndicator();
   $("view-list-btn").classList.toggle("active", viewMode === "list");
   $("view-table-btn").classList.toggle("active", viewMode === "table");
 
@@ -1641,12 +1680,20 @@ function renderAssetBar() {
   bar.innerHTML = html.join("");
 }
 
+function popActiveChip(barId) {
+  const el = $(barId).querySelector(".chip-btn.active");
+  if (!el) return;
+  el.classList.add("pop");
+  el.addEventListener("animationend", () => el.classList.remove("pop"), { once: true });
+}
+
 $("category-bar").addEventListener("click", e => {
   const btn = e.target.closest(".chip-btn");
   if (!btn) return;
   activeCategory = btn.dataset.cat || null;
   activeAsset = null;
   render();
+  popActiveChip("category-bar");
 });
 
 $("asset-bar").addEventListener("click", e => {
@@ -1654,6 +1701,7 @@ $("asset-bar").addEventListener("click", e => {
   if (!btn) return;
   activeAsset = btn.dataset.asset || null;
   render();
+  popActiveChip("asset-bar");
 });
 
 $("status-filter").onchange = e => { statusFilter = e.target.value; render(); };
@@ -2131,6 +2179,15 @@ $("tabs").addEventListener("click", e => {
   detailReturnTab = null;
   render();
 });
+
+function updateTabIndicator() {
+  const active = $("tabs").querySelector(".tab-btn.active");
+  const indicator = $("tab-indicator");
+  if (!active || !indicator) return;
+  indicator.style.width = `${active.offsetWidth}px`;
+  indicator.style.transform = `translateX(${active.offsetLeft}px)`;
+}
+addEventListener("resize", updateTabIndicator);
 
 // ── Upload modal ─────────────────────────────────────────────
 function openUploadModal() {

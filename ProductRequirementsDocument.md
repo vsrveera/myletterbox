@@ -900,3 +900,23 @@ High availability (99.9% uptime for cloud services)
 # 25. Product Vision Statement
 
 Life Cabinet should become the single trusted place where a user can instantly find, understand, and manage every important document in their life. Rather than acting as another cloud drive, it should function as an intelligent digital life assistant—organizing information around people, assets, events, and responsibilities, proactively surfacing what matters, and making document management effortless through AI.
+
+
+
+
+MORE Feature suggestions
+A few directions, roughly ordered by leverage-to-effort:
+
+Useful
+- Real reminders — you already compute expiry_date/"Needs Attention" on the dashboard, but nothing notifies you proactively. Even a daily digest email (you already have AgentMail wired up) for "3 things expiring this week" would make the app feel like it's working for you, not just storing files.
+- Semantic/AI search — current search is a plain substring match on subject/summary. Given you're already calling Claude for classification, a "documents about my apartment purchase" natural-language search (embeddings or just an LLM query-rewrite pass) is a signature PRD feature and differentiates from generic cloud storage.
+- Related documents — PRD mentions contract → invoice → warranty → repair chains. Even a simple heuristic (same asset + overlapping dates) surfaced in the detail pane would make the "life, not folders" pitch tangible.
+- Family/shared cabinet — right now it's single-user by email. Even read-only sharing of one asset (e.g. spouse sees "Frankfurt Apartment" docs) would unlock the "small family groups" target user from the PRD.
+
+Beautiful
+- Empty/loading states — worth an audit; skeleton loaders exist for the dashboard, but check upload/graph/workflow for jarring blank states.
+- Document thumbnails — right now the list is text-only (subject/summary/chips); a small PDF-first-page thumbnail per card would make Cabinet browsing feel like a real filing cabinet instead of a table.
+- Onboarding polish — first-run experience for a brand-new trial user (empty cabinet, no docs yet) is worth a dedicated "forward your first letter" empty state rather than a blank grid.
+- Motion/microinteractions — the graph already has nice force-directed physics; category chips, tab switches, and the detail modal could pick up the same level of polish (subtle transitions, not just opacity fades).
+
+If one of these jumps out, say which and I'll turn it into a concrete plan — I'd lean toward reminders or document thumbnails as the best next single move: one makes the product indispensable, the other makes it instantly look more premium.
