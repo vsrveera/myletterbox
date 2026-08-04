@@ -2404,6 +2404,10 @@ function renderReminders() {
 }
 
 $("reminders-btn").onclick = async () => {
+  if (!auth.currentUser) {
+    alert("Please sign in to activate reminders.");
+    return;
+  }
   const next = !remindersEnabled;
   try {
     const settings = await api("/users/me/settings", {
