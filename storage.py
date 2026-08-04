@@ -284,6 +284,47 @@ async def update_user_billing(email: str, updates: dict) -> None:
     await asyncio.to_thread(_update_user_billing_sync, email, updates)
 
 
+def _update_user_settings_sync(email: str, updates: dict) -> dict:
+    safe_updates = {}
+    if "reminders_enabled" in updates:
+        safe_updates["reminders_enabled"] = bool(updates["reminders_enabled"])
+    if not safe_updates:
+        return safe_updates
+
+    _fs().collection("users").document(email).set(safe_updates, merge=True)
+    logger.info("Updated settings for %s: %s", email, safe_updates)
+    return safe_updates
+
+
+async def update_user_settings(email: str, updates: dict) -> dict:
+    """Apply a whitelisted set of user-settings edits (currently just reminders_enabled)."""
+    return await asyncio.to_thread(_update_user_settings_sync, email, updates)
+
+
+def _list_users_with_reminders_enabled_sync() -> list[str]:
+    docs = _fs().collection("users").where("reminders_enabled", "==", True).stream()
+    return [d.id for d in docs]
+
+
+async def list_users_with_reminders_enabled() -> list[str]:
+    """Return the emails of every user who has opted into the reminders digest."""
+    return await asyncio.to_thread(_list_users_with_reminders_enabled_sync)
+
+
+def _list_documents_sync(email: str) -> list[dict]:
+    docs = (
+        _fs().collection("users").document(email).collection("documents")
+        .order_by("timestamp", direction=firestore.Query.DESCENDING)
+        .stream()
+    )
+    return [{"id": d.id, **d.to_dict()} for d in docs]
+
+
+async def list_documents(email: str) -> list[dict]:
+    """Return this user's documents, newest first — used for the reminders digest job."""
+    return await asyncio.to_thread(_list_documents_sync, email)
+
+
 def _find_user_email_by_customer_sync(customer_id: str) -> str | None:
     docs = (
         _fs().collection("users")

@@ -115,7 +115,7 @@
       color: var(--text);
       font-size: 14px;
       cursor: pointer;
-      transition: background .15s, border-color .15s;
+      transition: background .15s, border-color .15s, color .15s;
     }
     button:hover { background: var(--surface-2); }
     button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
@@ -125,6 +125,7 @@
       display: inline-flex; align-items: center; justify-content: center;
       font-size: 15px; line-height: 1;
     }
+    button.icon.active { background: var(--accent-soft); border-color: var(--accent); }
 
     /* ── Landing page ── */
     #login-screen { padding: 0 24px 80px; }
@@ -754,6 +755,7 @@
   <div id="user-info">
     <span id="user-email"></span>
     <button id="manage-billing-btn">Manage billing</button>
+    <button class="icon" id="reminders-btn" title="Weekly reminders: off" aria-label="Toggle weekly email reminders" aria-pressed="false">🔔</button>
     <button class="icon" id="theme-btn" title="Toggle theme" aria-label="Toggle colour theme">◐</button>
     <button id="sign-out-btn" style="display:none">Sign out</button>
   </div>
@@ -1293,6 +1295,7 @@ onAuthStateChanged(auth, user => {
     $("user-email").textContent = user.email;
     loadDocuments(user.email);
     refreshBilling();
+    refreshSettings();
   } else {
     document.body.classList.remove("signed-in");
     $("sign-out-btn").style.display = "none";
@@ -1300,6 +1303,8 @@ onAuthStateChanged(auth, user => {
     allDocs = [];
     selectedId = cursorId = null;
     billingInfo = null;
+    remindersEnabled = false;
+    renderReminders();
     $("trial-banner").classList.remove("show");
     $("paywall-modal").style.display = "none";
     $("manage-billing-btn").style.display = "none";
@@ -2376,6 +2381,42 @@ async function openBillingPortal() {
   });
   window.location.href = url;
 }
+
+// ── Settings (reminders opt-in) ─────────────────────────────
+let remindersEnabled = false;
+
+async function refreshSettings() {
+  try {
+    const settings = await api("/users/me/settings");
+    remindersEnabled = !!settings.reminders_enabled;
+  } catch (e) {
+    console.error("Failed to load user settings", e);
+    return;
+  }
+  renderReminders();
+}
+
+function renderReminders() {
+  const btn = $("reminders-btn");
+  btn.classList.toggle("active", remindersEnabled);
+  btn.setAttribute("aria-pressed", String(remindersEnabled));
+  btn.title = `Weekly reminders: ${remindersEnabled ? "on" : "off"}`;
+}
+
+$("reminders-btn").onclick = async () => {
+  const next = !remindersEnabled;
+  try {
+    const settings = await api("/users/me/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reminders_enabled: next }),
+    });
+    remindersEnabled = !!settings.reminders_enabled;
+    renderReminders();
+  } catch (e) {
+    alert(`Failed to update reminders: ${e.message}`);
+  }
+};
 
 $("trial-banner-subscribe-btn").onclick = () => startCheckout().catch(e => alert(e.message));
 $("paywall-subscribe-btn").onclick = () => startCheckout().catch(e => alert(e.message));

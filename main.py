@@ -4,7 +4,7 @@ import os
 import re
 import tempfile
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import firebase_admin
@@ -24,9 +24,12 @@ from storage import (  # noqa: E402
     find_user_email_by_customer,
     get_asset_names,
     get_or_create_user,
+    list_documents,
+    list_users_with_reminders_enabled,
     save_document,
     update_document_fields,
     update_user_billing,
+    update_user_settings,
 )
 from summarize_images import ACCEPTED_IMAGE_TYPES, analyze_email, combine_attachments_to_pdf, summarize_german_document  # noqa: E402
 
@@ -42,6 +45,9 @@ stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
 STRIPE_PRICE_ID = os.environ.get("STRIPE_PRICE_ID", "")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 STRIPE_PRICE_DISPLAY = os.environ.get("STRIPE_PRICE_DISPLAY", "")
+
+REMINDERS_JOB_SECRET = os.environ.get("REMINDERS_JOB_SECRET", "")
+APP_URL = os.environ.get("APP_URL", "https://project-f33cb18b-d366-43b3-9ee.web.app")
 
 app.add_middleware(
     CORSMiddleware,
@@ -166,6 +172,16 @@ async def _send_reply(
         resp = await http.post(url, headers=_agentmail_headers(), json=payload)
         resp.raise_for_status()
     logger.info("Reply sent — subject: %r  message: %s", subject, message_id)
+
+
+async def _send_digest_email(inbox_id: str, to_email: str, subject: str, text: str) -> None:
+    """Send a brand-new email (not a reply) — used for the weekly reminders digest."""
+    url = f"{AGENTMAIL_BASE}/inboxes/{inbox_id}/messages/send"
+    payload = {"to": [to_email], "subject": subject, "text": text}
+    async with httpx.AsyncClient(timeout=30) as http:
+        resp = await http.post(url, headers=_agentmail_headers(), json=payload)
+        resp.raise_for_status()
+    logger.info("Reminders digest sent to %s via inbox %s", to_email, inbox_id)
 
 
 async def _fetch_body(body_url: str) -> str:
@@ -513,6 +529,116 @@ async def patch_document(doc_id: str, request: Request):
 
     await update_document_fields(sender, doc_id, updates)
     return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# User settings (reminders opt-in)
+# ---------------------------------------------------------------------------
+
+@app.get("/users/me/settings")
+async def get_user_settings(request: Request):
+    email = await _verify_user(request)
+    user = await get_or_create_user(email)
+    return {"reminders_enabled": bool(user.get("reminders_enabled", False))}
+
+
+@app.patch("/users/me/settings")
+async def patch_user_settings(request: Request):
+    email = await _verify_user(request)
+    body = await request.json()
+    await update_user_settings(email, body)
+    user = await get_or_create_user(email)
+    return {"reminders_enabled": bool(user.get("reminders_enabled", False))}
+
+
+# ---------------------------------------------------------------------------
+# Reminders digest (weekly email for documents needing attention / expiring soon)
+# ---------------------------------------------------------------------------
+
+def _parse_expiry_date(doc: dict) -> date | None:
+    raw = doc.get("expiry_date")
+    if not raw:
+        return None
+    try:
+        return date.fromisoformat(raw)
+    except ValueError:
+        return None
+
+
+def _digest_sections(docs: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Mirror the frontend dashboard's 'Needs Attention' / 'Upcoming' filters (public/index.html)."""
+    today = datetime.now(timezone.utc).date()
+    in_30 = today + timedelta(days=30)
+
+    attention, upcoming = [], []
+    for d in docs:
+        status = d.get("workflow_status") or "Inbox"
+        if status == "Completed":
+            continue
+        exp = _parse_expiry_date(d)
+        if status == "Needs Action" or (exp and exp <= in_30):
+            attention.append(d)
+        if exp and exp > today:
+            upcoming.append(d)
+
+    attention = attention[:10]
+    attention_ids = {d["id"] for d in attention}
+    upcoming = [d for d in upcoming if d["id"] not in attention_ids]
+    upcoming.sort(key=_parse_expiry_date)
+    return attention, upcoming[:10]
+
+
+def _build_digest_email(attention: list[dict], upcoming: list[dict]) -> tuple[str, str]:
+    total = len(attention) + len(upcoming)
+    subject = f"Life Cabinet: {total} item{'' if total == 1 else 's'} to look at this week"
+
+    def line(d: dict) -> str:
+        exp = d.get("expiry_date")
+        return f"- {d.get('subject') or 'Untitled document'}" + (f" — expires {exp}" if exp else "")
+
+    lines = ["Here's what's coming up in your Life Cabinet this week.", ""]
+    if attention:
+        lines += ["NEEDS ATTENTION", *[line(d) for d in attention], ""]
+    if upcoming:
+        lines += ["UPCOMING", *[line(d) for d in upcoming], ""]
+    lines.append(f"Open Life Cabinet: {APP_URL}")
+    return subject, "\n".join(lines)
+
+
+@app.post("/jobs/reminders-digest")
+async def reminders_digest_job(request: Request):
+    """Triggered by Cloud Scheduler — emails the weekly digest to every opted-in user."""
+    if not REMINDERS_JOB_SECRET or request.headers.get("x-job-secret") != REMINDERS_JOB_SECRET:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    emails = await list_users_with_reminders_enabled()
+    sent, skipped = 0, 0
+    for email in emails:
+        try:
+            docs = await list_documents(email)
+            if not docs:
+                skipped += 1
+                continue
+
+            attention, upcoming = _digest_sections(docs)
+            if not attention and not upcoming:
+                skipped += 1
+                continue
+
+            inbox_id = docs[0].get("inbox_id")
+            if not inbox_id:
+                skipped += 1
+                continue
+
+            subject, text = _build_digest_email(attention, upcoming)
+            await _send_digest_email(inbox_id, email, subject, text)
+            sent += 1
+        except Exception:
+            logger.exception("Failed to send reminders digest to %s", email)
+            skipped += 1
+
+    logger.info("Reminders digest job complete — sent=%d skipped=%d", sent, skipped)
+    return {"sent": sent, "skipped": skipped}
 
 
 # ---------------------------------------------------------------------------
