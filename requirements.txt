@@ -12,3 +12,4 @@ google-cloud-firestore
 google-cloud-storage
 firebase-admin
 stripe
+pypdfium2

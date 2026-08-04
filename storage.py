@@ -1,8 +1,10 @@
 import asyncio
+import io
 import logging
 import os
 from datetime import datetime, timedelta, timezone
 
+import pypdfium2 as pdfium
 from google.api_core import exceptions as gcloud_exceptions
 from google.cloud import firestore, storage
 
@@ -11,6 +13,7 @@ logger = logging.getLogger("myletterbox")
 _GCS_BUCKET = os.environ.get("GCS_BUCKET", "myletterbox-757041740498")
 
 TRIAL_DAYS = 30
+THUMBNAIL_WIDTH = 480
 
 # Fields a client is allowed to change via the PATCH /documents/{id} endpoint.
 EDITABLE_DOCUMENT_FIELDS = {
@@ -82,6 +85,23 @@ def _get_or_create_asset(sender_email: str, asset_name: str, category: str | Non
     return new_ref.id
 
 
+def _render_pdf_thumbnail(pdf_bytes: bytes) -> bytes | None:
+    """Render the first page of a PDF to a JPEG thumbnail. Returns None on any failure."""
+    try:
+        pdf = pdfium.PdfDocument(pdf_bytes)
+        if len(pdf) == 0:
+            return None
+        page = pdf[0]
+        width, _height = page.get_size()
+        bitmap = page.render(scale=THUMBNAIL_WIDTH / width)
+        buf = io.BytesIO()
+        bitmap.to_pil().convert("RGB").save(buf, format="JPEG", quality=82)
+        return buf.getvalue()
+    except Exception:
+        logger.exception("Failed to render PDF thumbnail")
+        return None
+
+
 def _save_sync(
     *,
     sender_email: str,
@@ -106,15 +126,22 @@ def _save_sync(
     pdf_gcs_uri: str | None = None
 
     pdf_public_url: str | None = None
+    thumbnail_url: str | None = None
 
     if pdf_bytes:
-        blob_path = f"{sender_email}/{event_id}/{pdf_filename}"
         bucket = _gcs().bucket(_GCS_BUCKET)
+        blob_path = f"{sender_email}/{event_id}/{pdf_filename}"
         blob = bucket.blob(blob_path)
         blob.upload_from_string(pdf_bytes, content_type="application/pdf")
         pdf_gcs_uri = f"gs://{_GCS_BUCKET}/{blob_path}"
         pdf_public_url = f"https://storage.googleapis.com/{_GCS_BUCKET}/{blob_path}"
         logger.info("PDF saved to %s", pdf_gcs_uri)
+
+        thumb_bytes = _render_pdf_thumbnail(pdf_bytes)
+        if thumb_bytes:
+            thumb_path = f"{sender_email}/{event_id}/thumb.jpg"
+            bucket.blob(thumb_path).upload_from_string(thumb_bytes, content_type="image/jpeg")
+            thumbnail_url = f"https://storage.googleapis.com/{_GCS_BUCKET}/{thumb_path}"
 
     asset_id = _get_or_create_asset(sender_email, asset_name or "", category)
 
@@ -133,6 +160,7 @@ def _save_sync(
         "inbox_id": inbox_id,
         "pdf_gcs_uri": pdf_gcs_uri,
         "pdf_public_url": pdf_public_url,
+        "thumbnail_url": thumbnail_url,
         "pdf_filename": pdf_filename,
         "attachment_count": attachment_count,
         "category": category,
