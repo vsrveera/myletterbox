@@ -293,9 +293,10 @@
     #result-count.show { display: block; }
 
     /* ── Panes ── */
-    #panes { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
+    #panes { display: grid; grid-template-columns: 220px 1fr; gap: 20px; align-items: start; }
     body.view-table #list-pane { display: none; }
     body.view-list #table-wrap { display: none; }
+    #cabinet-main { min-width: 0; }
 
     /* ── Document grid (matrix) ── */
     #doc-list {
@@ -593,63 +594,61 @@
       to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* ── Chip filter bars ── */
-    .chip-bar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
-    .chip-btn {
-      font-family: inherit; font-size: 12.5px; color: var(--text-soft);
-      background: var(--surface); border: 1px solid var(--border-strong);
-      border-radius: 999px; padding: 5px 12px; cursor: pointer; white-space: nowrap;
-      transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out),
-                  color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
-    }
-    .chip-btn:hover { border-color: var(--accent); }
-    .chip-btn:active { transform: scale(.94); }
-    .chip-btn.active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); font-weight: 600; }
-    .chip-btn.pop { animation: chip-pop var(--dur-med) var(--ease-spring); }
-    @keyframes chip-pop { from { transform: scale(.9); } to { transform: scale(1); } }
-
-    /* ── Category folder tiles ── */
-    #category-bar { gap: 10px; }
-    .folder-btn {
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      width: 92px; padding: 12px 8px 9px; gap: 5px;
-      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-      font-family: inherit; cursor: pointer;
-      transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
-    }
-    .folder-btn:hover { border-color: var(--border-strong); transform: translateY(-1px); }
-    .folder-btn:active { transform: scale(.95); }
-    .folder-btn.active { border-color: var(--accent); background: var(--accent-soft); }
-    .folder-icon { width: 36px; height: 27px; position: relative; }
+    /* ── Folder tree (left panel) ── */
+    .folder-icon { width: 18px; height: 14px; position: relative; flex: none; }
     .folder-icon::before {
-      content: ""; position: absolute; top: 0; left: 0; width: 15px; height: 6px;
-      background: var(--text-muted); border-radius: 3px 4px 0 0;
+      content: ""; position: absolute; top: 0; left: 0; width: 8px; height: 3px;
+      background: var(--text-muted); border-radius: 2px 2px 0 0;
       transition: background var(--dur-fast) var(--ease-out);
     }
     .folder-icon::after {
-      content: ""; position: absolute; top: 4px; left: 0; width: 36px; height: 23px;
+      content: ""; position: absolute; top: 2px; left: 0; width: 18px; height: 12px;
       background: var(--surface-2); border: 1.5px solid var(--border-strong);
-      border-radius: 2px 7px 7px 7px;
+      border-radius: 1px 4px 4px 4px;
       transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
     }
-    .folder-btn.active .folder-icon::before,
-    .folder-btn.active .folder-icon::after { background: var(--accent); border-color: var(--accent); }
-    .folder-btn.active .folder-icon::after { background: var(--surface); }
-    .folder-label {
-      font-size: 11.5px; font-weight: 600; color: var(--text); text-align: center;
-      line-height: 1.25; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
-      white-space: nowrap; width: 100%;
-    }
-    .folder-btn.active .folder-label { color: var(--accent); }
-    .folder-count { font-size: 10.5px; color: var(--text-muted); }
 
-    #asset-bar { gap: 8px; }
-    .folder-btn.sub { width: 72px; padding: 9px 6px 7px; gap: 4px; }
-    .folder-btn.sub .folder-icon { width: 28px; height: 21px; }
-    .folder-btn.sub .folder-icon::before { width: 12px; height: 5px; }
-    .folder-btn.sub .folder-icon::after { top: 3px; width: 28px; height: 18px; }
-    .folder-btn.sub .folder-label { font-size: 10.5px; }
-    .folder-btn.sub .folder-count { font-size: 9.5px; }
+    #folder-tree {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 8px; max-height: 70vh; overflow-y: auto;
+    }
+    .tree-node { }
+    .tree-row {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 6px; border-radius: 7px; cursor: pointer;
+      font-size: 13px; color: var(--text-soft);
+      transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+    }
+    .tree-row:hover { background: var(--surface-2); }
+    .tree-row.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+    .tree-row.active .folder-icon::before,
+    .tree-row.active .folder-icon::after { background: var(--accent); border-color: var(--accent); }
+    .tree-row.active .folder-icon::after { background: var(--surface); }
+    .tree-toggle {
+      width: 14px; height: 14px; flex: none; display: flex; align-items: center; justify-content: center;
+      color: var(--text-muted); font-size: 10px; transition: transform var(--dur-fast) var(--ease-out);
+    }
+    .tree-toggle.expanded { transform: rotate(90deg); }
+    .tree-toggle.spacer { visibility: hidden; }
+    .tree-label {
+      flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .tree-count { font-size: 10.5px; color: var(--text-muted); flex: none; }
+    .tree-row.active .tree-count { color: var(--accent); }
+    .tree-children {
+      margin-left: 19px; padding-left: 8px; border-left: 1px solid var(--border);
+      overflow: hidden; max-height: 0; transition: max-height var(--dur-med) var(--ease-out);
+    }
+    .tree-children.expanded { max-height: 2000px; }
+    .tree-children .folder-icon { width: 15px; height: 12px; }
+    .tree-children .folder-icon::before { width: 7px; height: 2.5px; }
+    .tree-children .folder-icon::after { width: 15px; height: 10px; top: 2px; }
+    .tree-children .tree-row { font-size: 12.5px; }
+
+    @media (max-width: 900px) {
+      #panes { grid-template-columns: 1fr; }
+      #folder-tree { max-height: none; }
+    }
 
     select.filter-select {
       font-family: inherit; font-size: 13px; padding: 8px 10px;
@@ -986,9 +985,6 @@
       </div>
     </div>
 
-    <div id="category-bar" class="chip-bar"></div>
-    <div id="asset-bar" class="chip-bar"></div>
-
     <div id="toolbar">
       <div class="search-wrap">
         <span class="search-icon">⌕</span>
@@ -1014,24 +1010,28 @@
     <div id="result-count"></div>
 
     <div id="panes">
-      <div id="list-pane">
-        <div id="doc-list"></div>
-      </div>
+      <nav id="folder-tree" aria-label="Folders"></nav>
 
-      <div class="table-wrap" id="table-wrap">
-        <div class="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Subject</th>
-                <th style="text-align:center">Att.</th>
-                <th>Summary</th>
-                <th>PDF</th>
-              </tr>
-            </thead>
-            <tbody id="doc-table-body"></tbody>
-          </table>
+      <div id="cabinet-main">
+        <div id="list-pane">
+          <div id="doc-list"></div>
+        </div>
+
+        <div class="table-wrap" id="table-wrap">
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Subject</th>
+                  <th style="text-align:center">Att.</th>
+                  <th>Summary</th>
+                  <th>PDF</th>
+                </tr>
+              </thead>
+              <tbody id="doc-table-body"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -1133,6 +1133,7 @@ let activeTab = "cabinet";          // home | cabinet | workflow
 let activeCategory = null;
 let activeAsset = null;
 let statusFilter = "";
+const expandedFolders = new Set();  // category names expanded in the folder tree
 
 // ── Graph view state ─────────────────────────────────────────
 let graphSearch = "";                     // lowercased filter text
@@ -1513,8 +1514,7 @@ function render() {
   const docs = getFiltered();
   navIds = [];
 
-  renderCategoryBar();
-  renderAssetBar();
+  renderFolderTree();
   renderList(docs);
   renderTable(docs);
   renderDetail();
@@ -1770,73 +1770,72 @@ function updateStats(docs) {
   $("stat-latest").textContent = docs.length ? statDate(docDate(docs[0])) : "—";
 }
 
-// ── Category / asset folder-tile filters ────────────────────────
-function folderBtn(label, count, active, dataset, extraClass = "") {
+// ── Hierarchical folder tree (category → asset) ─────────────────
+function treeRow(label, count, active, hasChildren, expanded, dataset, extraClass = "") {
   const attrs = Object.entries(dataset).map(([k, v]) => `data-${k}="${esc(v)}"`).join(" ");
-  return `<button class="chip-btn folder-btn${extraClass ? " " + extraClass : ""}${active ? " active" : ""}" ${attrs}>
+  const toggle = hasChildren
+    ? `<span class="tree-toggle${expanded ? " expanded" : ""}" data-toggle="1">▸</span>`
+    : `<span class="tree-toggle spacer">▸</span>`;
+  return `<div class="tree-row${extraClass ? " " + extraClass : ""}${active ? " active" : ""}" ${attrs}>
+    ${toggle}
     <span class="folder-icon"></span>
-    <span class="folder-label">${esc(label)}</span>
-    <span class="folder-count">${count}</span>
-  </button>`;
+    <span class="tree-label">${esc(label)}</span>
+    <span class="tree-count">${count}</span>
+  </div>`;
 }
 
-function renderCategoryBar() {
-  const counts = {};
+function renderFolderTree() {
+  const tree = $("folder-tree");
+  if (!allDocs.length) { tree.innerHTML = ""; return; }
+
+  const catCounts = {};
   for (const d of allDocs) {
     const c = d.category || "Uncategorized";
-    counts[c] = (counts[c] || 0) + 1;
+    catCounts[c] = (catCounts[c] || 0) + 1;
   }
-  const cats = CATEGORIES.filter(c => counts[c]);
-  if (counts["Uncategorized"]) cats.push("Uncategorized");
+  const cats = CATEGORIES.filter(c => catCounts[c]);
+  if (catCounts["Uncategorized"]) cats.push("Uncategorized");
 
-  const html = [folderBtn("All", allDocs.length, !activeCategory, { cat: "" })];
-  for (const c of cats) html.push(folderBtn(c, counts[c], activeCategory === c, { cat: c }));
-  $("category-bar").innerHTML = allDocs.length ? html.join("") : "";
+  const html = [treeRow("All Documents", allDocs.length, !activeCategory, false, false, { cat: "", asset: "" }, "tree-root")];
+
+  for (const c of cats) {
+    const inCategory = allDocs.filter(d => (d.category || "Uncategorized") === c);
+    const assetCounts = {};
+    for (const d of inCategory) {
+      if (!d.asset_id) continue;
+      assetCounts[d.asset_id] = (assetCounts[d.asset_id] || 0) + 1;
+    }
+    const assetIds = Object.keys(assetCounts);
+    const expanded = expandedFolders.has(c) || activeCategory === c;
+
+    html.push(treeRow(c, catCounts[c], activeCategory === c && !activeAsset, !!assetIds.length, expanded, { cat: c, asset: "" }));
+
+    if (assetIds.length) {
+      const children = assetIds.map(id => {
+        const name = allAssets.find(a => a.id === id)?.name || "Unnamed asset";
+        return treeRow(name, assetCounts[id], activeCategory === c && activeAsset === id, false, false, { cat: c, asset: id });
+      });
+      html.push(`<div class="tree-children${expanded ? " expanded" : ""}">${children.join("")}</div>`);
+    }
+  }
+
+  tree.innerHTML = html.join("");
 }
 
-function renderAssetBar() {
-  const bar = $("asset-bar");
-  if (!activeCategory) { bar.innerHTML = ""; return; }
-
-  const inCategory = allDocs.filter(d => (d.category || "Uncategorized") === activeCategory);
-  const counts = {};
-  for (const d of inCategory) {
-    if (!d.asset_id) continue;
-    counts[d.asset_id] = (counts[d.asset_id] || 0) + 1;
+$("folder-tree").addEventListener("click", e => {
+  if (e.target.closest("[data-toggle]")) {
+    const row = e.target.closest(".tree-row");
+    const cat = row.dataset.cat;
+    if (expandedFolders.has(cat)) expandedFolders.delete(cat); else expandedFolders.add(cat);
+    renderFolderTree();
+    return;
   }
-  const assetIds = Object.keys(counts);
-  if (!assetIds.length) { bar.innerHTML = ""; return; }
-
-  const html = [folderBtn("All assets", inCategory.length, !activeAsset, { asset: "" }, "sub")];
-  for (const id of assetIds) {
-    const name = allAssets.find(a => a.id === id)?.name || "Unnamed asset";
-    html.push(folderBtn(name, counts[id], activeAsset === id, { asset: id }, "sub"));
-  }
-  bar.innerHTML = html.join("");
-}
-
-function popActiveChip(barId) {
-  const el = $(barId).querySelector(".chip-btn.active");
-  if (!el) return;
-  el.classList.add("pop");
-  el.addEventListener("animationend", () => el.classList.remove("pop"), { once: true });
-}
-
-$("category-bar").addEventListener("click", e => {
-  const btn = e.target.closest(".chip-btn");
-  if (!btn) return;
-  activeCategory = btn.dataset.cat || null;
-  activeAsset = null;
+  const row = e.target.closest(".tree-row");
+  if (!row) return;
+  activeCategory = row.dataset.cat || null;
+  activeAsset = row.dataset.asset || null;
+  if (activeCategory) expandedFolders.add(activeCategory);
   render();
-  popActiveChip("category-bar");
-});
-
-$("asset-bar").addEventListener("click", e => {
-  const btn = e.target.closest(".chip-btn");
-  if (!btn) return;
-  activeAsset = btn.dataset.asset || null;
-  render();
-  popActiveChip("asset-bar");
 });
 
 $("status-filter").onchange = e => { statusFilter = e.target.value; render(); };
