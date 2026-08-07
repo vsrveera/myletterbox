@@ -247,73 +247,140 @@ Persistent global search bar.
 
 ---
 
-# 7. Cabinet Structure
+# 7. Cabinet Structure (Classification Taxonomy)
+
+Documents are classified along a hierarchical taxonomy: **Domain → Subdomain → Class → Subclass**. Subdomain and Subclass levels are used only where they earn their keep — not every branch needs all four levels.
+
+The taxonomy is curated, not fully closed. Predefined branches cover the common cases; when a document doesn't fit any existing leaf well, AI proposes a new one for review instead of forcing a bad match or silently inventing a category (see Section 14, Auto Classification).
+
+Classes such as Contract, Invoice, Insurance Policy, and Statement recur across multiple domains. They are defined once — including their metadata fields (Section 11) — and reused wherever they apply, rather than redefined per domain.
 
 Example
 
 ```
 Property
 
-    Frankfurt Apartment
+    Real Estate
+
+        Purchase / Sale Contract
+
+        Mortgage
+
+        Deed / Title
+
+        Utility Account
+
+    Rental
+
+        Lease Agreement
+
+        Rent Receipt
+
+Vehicles
+
+    Registration
+
+    Insurance
+
+    Service & Repairs
+
+    Purchase / Loan
+
+Career & Business
+
+    Employment
+
+        Employment Contract
+
+        Payslip
+
+        Performance Review
+
+    Business Operations
+
+        Formation & Licensing
+
+            Registration Certificate
+
+            Business License
 
         Contracts
 
-        Utilities
+            Client Contract
 
-        Repairs
+            Vendor Contract / NDA
 
-        Photos
+        Payroll & HR
 
-        Correspondence
+            Employee Contract
 
-        Receipts
+            Payroll Report
 
-    Munich Apartment
+        Business Banking
 
-    Hyderabad Apartment
-```
+            Business Bank Statement
 
----
-
-Vehicle
-
-```
-BMW iX3
-
-Registration
-
-Insurance
-
-Service
-
-Parking
-
-Repairs
-
-Invoices
-```
-
----
+            Invoice (Issued / Received)
 
 Health
 
+    Records
+
+        Visit Summary
+
+        Lab Result
+
+    Insurance Claims
+
+    Prescriptions
 ```
-Subbu
 
-Medical Records
-
-Vaccinations
-
-Dental
-
-Insurance Claims
-
-Prescriptions
-```
+Personal, family, and small-business documents share this same taxonomy — the "Business Operations" subdomain above exists because those document classes (payroll, business licensing) don't apply to personal life, not because business documents get a separate tree. Whose document it is — personal, a specific family member's, or a specific business's — is handled orthogonally, as ownership context rather than classification. See Section 8.
 
 ---
 
-# 8. Document Model
+# 8. Context & Parties
+
+Every document belongs to one or more **Parties** — the person or entity it concerns. A Party has one of three types:
+
+```
+self             the account holder
+
+family_member    a specific family member (spouse, child, parent, ...)
+
+business         a specific small business the account holder owns
+```
+
+A document's **context** — Personal, Family, or Business — is derived from the type of its Party, not maintained as a separate field, so it can never drift out of sync with who the document actually belongs to.
+
+A document can carry more than one Party. Example: a vehicle used both personally and for a registered small business links to both a `self`/`family_member` Party and a `business` Party, and surfaces under both contexts.
+
+```
+users/{account}/parties/{id}
+
+    name
+
+    type       self | family_member | business
+
+    meta       relation, date of birth        (family_member)
+               entity type, registration no.  (business)
+```
+
+Assets may declare a default Party (e.g. a "Business Checking Account" asset defaults to the business Party); documents filed under that asset inherit it but can override per document.
+
+## Cabinet Context Switcher
+
+```
+All | Personal | Family ▾ | Business ▾
+```
+
+Family and Business expand to list individual members/entities once more than one exists. Selecting a context scopes both the taxonomy tree (Section 7) and search (Section 12) to documents whose Party list includes it.
+
+This registry is also the foundation for family sharing (Section 19, Section 24): inviting a family member's own login and linking it to their Party record scopes their view to their own documents.
+
+---
+
+# 9. Document Model
 
 Each document contains:
 
@@ -326,13 +393,13 @@ Original filename
 
 Description
 
-Category
+Taxonomy Path (Domain / Subdomain / Class / Subclass)
 
 Asset
 
 Owner
 
-Document Type
+Parties (context: personal / family / business — one or more)
 
 Workflow Status
 
@@ -343,6 +410,8 @@ Upload Date
 Expiry Date
 
 Tags
+
+Class Metadata (fields defined per Class — see Section 11)
 
 Source
 
@@ -362,7 +431,7 @@ Modified By
 
 ---
 
-# 9. Assets
+# 10. Assets
 
 Assets represent real-world objects.
 
@@ -384,49 +453,39 @@ Mortgage
 Investment Account
 ```
 
-Every document links to an asset.
+Every document links to an asset. An asset may declare a default Party (Section 8); documents filed under it inherit that Party unless overridden.
 
 ---
 
-# 10. Categories
+# 11. Document Classes & Metadata Schemas
+
+Each Class in the taxonomy (Section 7) carries its own metadata schema — a fixed set of fields relevant to that kind of document — rather than every document sharing one universal field set. AI extracts only the fields defined for the leaf it classifies a document into.
 
 Examples
 
 ```
-Contract
+Invoice            vendor, amount, currency, invoice_number, due_date, paid_status
 
-Invoice
+Insurance Policy   insurer, policy_number, coverage_amount, premium, renewal_date
 
-Receipt
+Contract           counterparty, effective_date, term_end_date, contract_value
 
-Certificate
+Statement          account, period_start, period_end, closing_balance
 
-Warranty
+Vehicle Registration   plate_number, VIN, registration_expiry
+```
 
-Photo
+A Subclass inherits its Class's fields and may add more.
 
-Medical Report
-
-Tax Document
-
-Correspondence
-
-Insurance Policy
-
-License
-
+```
 Statement
 
-Utility Bill
-
-Loan Document
-
-Maintenance Report
+    Credit Card Statement   + statement_period, minimum_payment_due
 ```
 
 ---
 
-# 11. Search
+# 12. Search
 
 Search supports
 
@@ -444,6 +503,8 @@ passport
 BMW Service Munich
 ```
 
+Depends on OCR Text extraction (Section 9) — deferred until structured metadata search (below) is proven out.
+
 ---
 
 ## AI Semantic
@@ -456,9 +517,11 @@ documents related to buying my apartment
 
 ## Filters
 
-Category
+Domain / Subdomain / Class / Subclass
 
 Asset
+
+Context (Personal / Family / Business)
 
 Person
 
@@ -468,13 +531,47 @@ Workflow
 
 Tags
 
-Document Type
+Class Metadata (e.g. amount, vendor, policy number)
 
 File Type
 
 ---
 
-# 12. Document Viewer
+## Implementation Staging
+
+Search is layered rather than built as one full-text/semantic system up front:
+
+```
+1. Canonical query fields
+
+   Each Class's metadata schema (Section 11) maps its fields onto a
+   small shared set of fields stored on every document that has them:
+
+   search_amount    search_date    search_party    search_counterparty
+
+   Lets a query like "everything over 500 due this month" work across
+   Invoice, Statement, Contract, etc. without per-class query logic.
+
+2. Structured filter backend
+
+   Server-side filtering on Taxonomy Path, Party (Section 8), Tags,
+   and the canonical fields above — replaces substring scanning with
+   real queries.
+
+3. AI query-rewrite
+
+   The search bar stays natural language. A query such as "documents
+   related to buying my apartment" is rewritten into a structured
+   filter (Domain = Property, Asset = Frankfurt Apartment) instead of
+   requiring a vector/embedding search — this fulfils AI Semantic
+   search above without standing up separate search infrastructure.
+```
+
+OCR full-text (body) search is a later, separate phase — not required for stages 1–3.
+
+---
+
+# 13. Document Viewer
 
 Three-panel layout.
 
@@ -522,7 +619,7 @@ AI Chat
 
 ---
 
-# 13. AI Features
+# 14. AI Features
 
 ## OCR
 
@@ -532,19 +629,64 @@ Automatic OCR after upload.
 
 ## Auto Classification
 
-Detect
+Classify each document against the taxonomy (Section 7) down to its most specific matching leaf (Class or Subclass).
 
-- invoice
-- passport
-- insurance
-- medical
-- contract
+When no existing leaf fits well, propose a new leaf with a reason and confidence score into a review queue, rather than forcing a mismatch or silently inventing a category.
+
+Match documents to an existing Party (Section 8), reusing the same hint-and-match pattern already used for Assets, instead of creating duplicate people or entities.
+
+---
+
+## Taxonomy Review Queue
+
+New-leaf proposals are tracked separately from individual document workflow (Section 15) — this governs the shared taxonomy, not a document's lifecycle.
+
+```
+On proposal
+
+    Document files immediately under the nearest existing ancestor
+    leaf — never left unclassified
+
+    taxonomy_status: pending_review, proposed path stored alongside
+
+    Checked against other pending proposals under the same parent for
+    near-duplicates before creating a new one
+```
+
+```
+Notification
+
+    Proposal is recorded on the first matching document, but only
+    surfaces in the review queue once 2 or more documents would land
+    under it — avoids nagging over one-off documents
+```
+
+```
+Review actions
+
+    Approve as-is          adds the leaf to the taxonomy; attached
+                            documents reclassified into it; future
+                            classification includes it
+
+    Approve with edit      rename / reparent before adding
+
+    Merge into existing    AI proposal wasn't needed; attached
+                            documents reclassified into the matched
+                            existing leaf instead
+
+    Reject                 proposal discarded; documents remain at
+                            their ancestor-level classification
+```
+
+Approval is forward-only: it affects documents classified from that point on. Documents already filed elsewhere under the same parent are not automatically rescanned.
 
 ---
 
 ## Metadata Extraction
 
-Extract
+Extract the fields defined by the document's Class (Section 11) — e.g. vendor / amount / invoice_number for an Invoice, policy_number / premium / renewal_date for an Insurance Policy — rather than one universal field set.
+
+Also extract, where applicable:
 
 Dates
 
@@ -554,15 +696,7 @@ Addresses
 
 Names
 
-Invoice Numbers
-
-Policy Numbers
-
-Vehicle Registration
-
 Property Address
-
-Amounts
 
 Expiry Dates
 
@@ -616,7 +750,7 @@ User can ask
 
 ---
 
-# 14. Workflow
+# 15. Workflow
 
 Documents move independently of cabinet.
 
@@ -656,7 +790,7 @@ Completed
 
 ---
 
-# 15. Notifications
+# 16. Notifications
 
 Examples
 
@@ -678,7 +812,7 @@ Medical appointment
 
 ---
 
-# 16. Timeline View
+# 17. Timeline View
 
 Every document appears on a timeline.
 
@@ -698,7 +832,7 @@ Insurance Renewal
 
 ---
 
-# 17. Mobile Features
+# 18. Mobile Features
 
 Scan document
 
@@ -718,7 +852,7 @@ Widgets
 
 ---
 
-# 18. Sharing
+# 19. Sharing
 
 Generate secure share links.
 
@@ -752,7 +886,7 @@ Admin
 
 ---
 
-# 19. Security
+# 20. Security
 
 Mandatory encryption
 
@@ -776,7 +910,7 @@ Remote logout
 
 ---
 
-# 20. Integrations
+# 21. Integrations
 
 Cloud storage
 
@@ -822,7 +956,7 @@ Built-in camera
 
 ---
 
-# 21. Analytics
+# 22. Analytics
 
 Dashboard displays
 
@@ -842,7 +976,7 @@ Search frequency
 
 ---
 
-# 22. Non-Functional Requirements
+# 23. Non-Functional Requirements
 
 Fast search (<300 ms for indexed metadata)
 
@@ -866,7 +1000,7 @@ High availability (99.9% uptime for cloud services)
 
 ---
 
-# 23. Future Enhancements
+# 24. Future Enhancements
 
 - AI-generated life timeline
 - Household inventory with photos and purchase values
@@ -883,7 +1017,7 @@ High availability (99.9% uptime for cloud services)
 
 ---
 
-# 24. Success Metrics
+# 25. Success Metrics
 
 - Time to find a document: **< 10 seconds**
 - Automatic classification accuracy: **> 95%**
@@ -897,26 +1031,6 @@ High availability (99.9% uptime for cloud services)
 
 ---
 
-# 25. Product Vision Statement
+# 26. Product Vision Statement
 
 Life Cabinet should become the single trusted place where a user can instantly find, understand, and manage every important document in their life. Rather than acting as another cloud drive, it should function as an intelligent digital life assistant—organizing information around people, assets, events, and responsibilities, proactively surfacing what matters, and making document management effortless through AI.
-
-
-
-
-MORE Feature suggestions
-A few directions, roughly ordered by leverage-to-effort:
-
-Useful
-- Real reminders — you already compute expiry_date/"Needs Attention" on the dashboard, but nothing notifies you proactively. Even a daily digest email (you already have AgentMail wired up) for "3 things expiring this week" would make the app feel like it's working for you, not just storing files.
-- Semantic/AI search — current search is a plain substring match on subject/summary. Given you're already calling Claude for classification, a "documents about my apartment purchase" natural-language search (embeddings or just an LLM query-rewrite pass) is a signature PRD feature and differentiates from generic cloud storage.
-- Related documents — PRD mentions contract → invoice → warranty → repair chains. Even a simple heuristic (same asset + overlapping dates) surfaced in the detail pane would make the "life, not folders" pitch tangible.
-- Family/shared cabinet — right now it's single-user by email. Even read-only sharing of one asset (e.g. spouse sees "Frankfurt Apartment" docs) would unlock the "small family groups" target user from the PRD.
-
-Beautiful
-- Empty/loading states — worth an audit; skeleton loaders exist for the dashboard, but check upload/graph/workflow for jarring blank states.
-- Document thumbnails — right now the list is text-only (subject/summary/chips); a small PDF-first-page thumbnail per card would make Cabinet browsing feel like a real filing cabinet instead of a table.
-- Onboarding polish — first-run experience for a brand-new trial user (empty cabinet, no docs yet) is worth a dedicated "forward your first letter" empty state rather than a blank grid.
-- Motion/microinteractions — the graph already has nice force-directed physics; category chips, tab switches, and the detail modal could pick up the same level of polish (subtle transitions, not just opacity fades).
-
-If one of these jumps out, say which and I'll turn it into a concrete plan — I'd lean toward reminders or document thumbnails as the best next single move: one makes the product indispensable, the other makes it instantly look more premium.
